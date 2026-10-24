@@ -1,5 +1,5 @@
 // Cache simples para abrir sem internet. Mude VERSAO a cada entrega para atualizar.
-var VERSAO='atlas-financas-piloto-5',ARQ=['./','./index.html','./manifest.webmanifest','./icone-192.png','./icone-512.png','./apple-touch-icon.png','./favicon-32.png'];
+var VERSAO='atlas-financas-piloto-6',ARQ=['./','./index.html','./manifest.webmanifest','./icone-192.png','./icone-512.png','./apple-touch-icon.png','./favicon-32.png'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(VERSAO).then(function(c){return c.addAll(ARQ)}).then(function(){return self.skipWaiting()}))});
 self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k!==VERSAO}).map(function(k){return caches.delete(k)}))}).then(function(){return self.clients.claim()}))});
 self.addEventListener('fetch',function(e){if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(function(r){var c=r.clone();caches.open(VERSAO).then(function(x){x.put(e.request,c)});return r}).catch(function(){return caches.match(e.request).then(function(m){return m||caches.match('./index.html')})}))});

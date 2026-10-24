@@ -152,14 +152,39 @@ function parseQuick(text,today){
   return{v:v,t:tipo,cat:cat,desc:desc.slice(0,60),data:data};
 }
 
+function pascoa(y){
+  var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;
+  return new Date(y,mes-1,dia);
+}
+function feriadosNacionais(y){
+  var f={},add=function(m,d){f[y+'-'+pad(m)+'-'+pad(d)]=1};
+  [[1,1],[4,21],[5,1],[9,7],[10,12],[11,2],[11,15],[11,20],[12,25]].forEach(function(x){add(x[0],x[1])});
+  var sx=pascoa(y);sx.setDate(sx.getDate()-2);f[ymd(sx)]=1; // Sexta-feira Santa
+  return f;
+}
+// N-ésimo dia útil do mês (ym). sab=true conta o sábado (regra da CLT para salário); falso = só segunda a sexta.
+// Considera só feriados NACIONAIS e a Sexta-feira Santa; feriado estadual/municipal o usuário ajusta na data.
+function nEsimoDiaUtil(ym,n,sab){
+  var fer=feriadosNacionais(+ym.slice(0,4)),dim=daysInMonth(ym),c=0;
+  for(var d=1;d<=dim;d++){
+    var dt=ym+'-'+pad(d),w=parseD(dt).getDay();
+    if(w===0||(w===6&&!sab)||fer[dt])continue;
+    c++;if(c===n)return dt;
+  }
+  return ym+'-'+pad(dim);
+}
+function dataRec(t,m){
+  if(t.regra&&t.regra.n>0)return nEsimoDiaUtil(m,t.regra.n,!!t.regra.sab);
+  return m+'-'+pad(Math.min(+t.data.slice(8,10),daysInMonth(m)));
+}
 function ensureRecurring(db,today){
   var ym=monthOf(today),added=0;
   db.recs.filter(function(r){return r.rec==='m'&&!r.from}).forEach(function(t){
     if(monthOf(t.data)>=ym)return;
     var exists=db.recs.some(function(r){return(r.from===t.id||r.id===t.id)&&monthOf(r.data)===ym});
     if(exists)return;
-    var day=Math.min(+t.data.slice(8,10),daysInMonth(ym));
-    db.recs.push({id:uid(),t:t.t,v:t.v,cat:t.cat,desc:t.desc,data:ym+'-'+pad(day),st:t.est?'real':'prev',fixa:!!t.fixa,est:!!t.est,rec:'m',from:t.id});
+    var nova={id:uid(),t:t.t,v:t.v,cat:t.cat,desc:t.desc,data:dataRec(t,ym),st:t.est?'real':'prev',fixa:!!t.fixa,est:!!t.est,rec:'m',from:t.id};
+    if(t.regra)nova.regra=t.regra;db.recs.push(nova);
     added++;
   });
   return added;
@@ -200,7 +225,7 @@ function proximoRecebimento(db,today){
     [ym,addMonths(ym,1)].forEach(function(m){
       if(monthOf(t.data)>m)return;
       if(db.recs.some(function(x){return(x.id===t.id||x.from===t.id)&&monthOf(x.data)===m}))return;
-      var d=m+'-'+pad(Math.min(+t.data.slice(8,10),daysInMonth(m)));
+      var d=dataRec(t,m);
       if(d>today)c.push({data:d,desc:t.desc,v:t.v});
     });
   });
@@ -290,9 +315,11 @@ function sugestaoMensal(meta,ym){
   return Math.ceil(falta/n);
 }
 
-function setup(db,today,renda,dia,fixasEst){
+function setup(db,today,renda,dia,fixasEst,regra){
   var ym=monthOf(today);dia=Math.min(Math.max(1,dia||5),28);
-  if(renda>0)db.recs.push({id:uid(),t:'r',v:renda,cat:'outros',desc:'Renda do mês',data:ym+'-'+pad(dia),st:'prev',fixa:false,rec:'m'});
+  if(renda>0){var rr={id:uid(),t:'r',v:renda,cat:'outros',desc:'Renda do mês',data:ym+'-'+pad(dia),st:'prev',fixa:false,rec:'m'};
+    if(regra&&regra.n>0){rr.regra={n:Math.min(23,regra.n),sab:!!regra.sab};rr.data=dataRec(rr,ym)}
+    db.recs.push(rr)}
   if(fixasEst>0)db.recs.push({id:uid(),t:'d',v:fixasEst,cat:'casa',desc:'Contas fixas (estimado)',data:ym+'-01',st:'real',fixa:true,est:true,rec:'m'});
   db.onb=true;
 }
@@ -306,7 +333,7 @@ function sanitize(o){
   if(!o||o.v!==1||!Array.isArray(o.recs)||!Array.isArray(o.metas))return null;
   var re=/^\d{4}-\d{2}-\d{2}$/;
   var recs=o.recs.filter(function(r){return r&&typeof r.id==='string'&&(r.t==='d'||r.t==='r')&&Number.isInteger(r.v)&&r.v>0&&typeof r.data==='string'&&re.test(r.data)});
-  recs.forEach(function(r){r.desc=String(r.desc||'').slice(0,60);r.cat=catLabel(r.cat)==='Outros'&&r.cat!=='outros'?'outros':r.cat;r.st=r.st==='prev'?'prev':'real';r.fixa=!!r.fixa});
+  recs.forEach(function(r){if(r.regra&&Number.isInteger(r.regra.n)&&r.regra.n>=1&&r.regra.n<=23)r.regra={n:r.regra.n,sab:!!r.regra.sab};else delete r.regra;r.desc=String(r.desc||'').slice(0,60);r.cat=catLabel(r.cat)==='Outros'&&r.cat!=='outros'?'outros':r.cat;r.st=r.st==='prev'?'prev':'real';r.fixa=!!r.fixa});
   var metas=o.metas.filter(function(m){return m&&typeof m.id==='string'&&Number.isInteger(m.alvo)&&m.alvo>0});
   metas.forEach(function(m){m.nome=String(m.nome||'Meta').slice(0,40);m.guardado=Number.isInteger(m.guardado)&&m.guardado>=0?m.guardado:0;m.mensal=Number.isInteger(m.mensal)&&m.mensal>=0?m.mensal:0;m.feita=!!m.feita;m.tipo=TIPOS_PLANO.some(function(t){return t[0]===m.tipo})?m.tipo:'outro';if(m.prazo&&!/^\d{4}-\d{2}$/.test(m.prazo))m.prazo=null});
   var reg={};if(o.reg&&typeof o.reg==='object')for(var k in o.reg)if(re.test(k))reg[k]=1;
@@ -1031,7 +1058,9 @@ function sRecebimento(){
   openSheet('<h2>Novo recebimento <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Salário, adiantamento, aluguel que você recebe, freela… O Atlas usa a data para saber até quando o seu dinheiro precisa durar.</p>'+
     '<label>Nome</label><input id="rn" maxlength="60" placeholder="Ex.: Salário" autofocus>'+
     '<label>Valor</label><input class="money" id="rv" inputmode="numeric" placeholder="R$ 0,00">'+
-    '<label>Data prevista</label><input type="date" id="rd" value="'+today+'">'+
+    '<label>Quando cai?</label><div class="seg"><button type="button" class="chip on" data-act="rquando" data-k="dia" id="rqd">Numa data</button><button type="button" class="chip" data-act="rquando" data-k="util" id="rqu">No Nº dia útil</button></div>'+
+    '<div id="rbd"><label>Data prevista</label><input type="date" id="rd" value="'+today+'"></div>'+
+    '<div id="rbu" hidden><label>Qual dia útil? (ex.: 5)</label><input id="rn5" type="number" min="1" max="23" value="5" inputmode="numeric"><label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="rsab" style="width:auto"> Contar o sábado como dia útil</label><p class="muted" style="margin:6px 0 0">Para salário, a CLT conta o sábado. Bancos e muitos empregadores contam só de segunda a sexta. Considero só feriados nacionais e a Sexta-feira Santa; se o seu cair em feriado local, ajuste a data do mês depois.</p></div>'+
     '<label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="rr" checked style="width:auto"> Repetir todo mês</label>'+
     '<div class="row"><button class="btn pri" data-act="saverec">Salvar recebimento</button></div>');
 }
@@ -1039,7 +1068,8 @@ function sSetup(){
   openSheet('<h2>Vamos começar <button class="icon-btn" data-act="skipsetup" aria-label="Pular">×</button></h2><p class="muted" style="margin:0">Duas informações e você já vê quanto pode gastar por dia. Dá para ajustar depois.</p>'+
     '<label>Quanto você recebe por mês?</label><input class="money" id="sr" inputmode="numeric" placeholder="R$ 0,00">'+
     '<label>Quanto você tem em conta hoje? (opcional, deixa o cálculo bem mais fiel)</label><input class="money" id="ss" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00">'+
-    '<label>Em que dia do mês cai?</label><input id="sd" type="number" min="1" max="28" value="5" inputmode="numeric">'+
+    '<label>Em que dia do mês cai? (ou, se for pelo dia útil, marque abaixo)</label><input id="sd" type="number" min="1" max="28" value="5" inputmode="numeric">'+
+    '<label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="sdu" style="width:auto"> É o Nº dia útil do mês (usa o número acima)</label><label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="sds" style="width:auto"> Contar o sábado como dia útil</label>'+
     '<label>Quanto vai embora em contas fixas? (aluguel, luz, internet…) aproximado</label><input class="money" id="sf" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00">'+
     '<div class="row"><button class="btn pri" data-act="savesetup">Ver meu limite por dia</button></div><div class="row"><button class="btn" data-act="skipsetup">Agora não</button></div>');
 }
@@ -1209,11 +1239,15 @@ document.addEventListener('click',function(e){
     case'savesetup':
       var r=toCents($('#sr').value);if(!r){toast('Digite quanto você recebe por mês.');break}
       db.recs=db.recs.filter(function(x){return!(x.rec==='m'&&!x.from&&(x.desc==='Renda do mês'||x.est)&&monthOf(x.data)===monthOf(today))});
-      setup(db,today,r,parseInt($('#sd').value,10),toCents($('#sf').value));var sv0=toCents($('#ss').value);if(sv0>0)definirSaldo(db,sv0,Date.now());markReg(db,today);save();closeSheet();render();toast('Pronto! Veja quanto você pode gastar hoje.');break;
+      setup(db,today,r,parseInt($('#sd').value,10),toCents($('#sf').value),$('#sdu').checked?{n:parseInt($('#sd').value,10)||5,sab:$('#sds').checked}:null);var sv0=toCents($('#ss').value);if(sv0>0)definirSaldo(db,sv0,Date.now());markReg(db,today);save();closeSheet();render();toast('Pronto! Veja quanto você pode gastar hoje.');break;
     case'saldo':sSaldo();break;
     case'novorec':sRecebimento();break;
-    case'saverec':{var rv=toCents($('#rv').value),rn=$('#rn').value.trim(),rd=$('#rd').value;if(!rn){toast('Dê um nome para o recebimento.');break}if(!rv){toast('Digite o valor.');break}if(!/^\d{4}-\d{2}-\d{2}$/.test(rd)){toast('Escolha a data prevista.');break}
-      db.recs.push({id:uid(),t:'r',v:rv,cat:'outros',desc:rn.slice(0,60),data:rd,st:'prev',fixa:false,rec:$('#rr').checked?'m':null});save();closeSheet();render();toast('Recebimento cadastrado. O Atlas já usa essa data.');break}
+    case'rquando':{var u=el.getAttribute('data-k')==='util';$('#rqd').classList.toggle('on',!u);$('#rqu').classList.toggle('on',u);$('#rbd').hidden=u;$('#rbu').hidden=!u;break}
+    case'saverec':{var rv=toCents($('#rv').value),rn=$('#rn').value.trim(),rd=$('#rd').value,util=!$('#rbu').hidden;if(!rn){toast('Dê um nome para o recebimento.');break}if(!rv){toast('Digite o valor.');break}
+      var nova={id:uid(),t:'r',v:rv,cat:'outros',desc:rn.slice(0,60),st:'prev',fixa:false,rec:$('#rr').checked?'m':null};
+      if(util){var nn=parseInt($('#rn5').value,10);if(!(nn>=1&&nn<=23)){toast('Digite um dia útil de 1 a 23.');break}nova.regra={n:nn,sab:$('#rsab').checked};nova.data=nEsimoDiaUtil(monthOf(today),nn,nova.regra.sab);nova.rec='m'}
+      else{if(!/^\d{4}-\d{2}-\d{2}$/.test(rd)){toast('Escolha a data prevista.');break}nova.data=rd}
+      db.recs.push(nova);save();closeSheet();render();toast('Recebimento cadastrado: cai em '+nova.data.slice(8,10)+'/'+nova.data.slice(5,7)+'.');break}
     case'savesaldo':{var sv=toCents($('#sv').value);if(!sv){toast('Digite o saldo, ou toque em "Meu saldo é zero".');break}definirSaldo(db,sv,Date.now());save();closeSheet();render();toast('Saldo atualizado.');break}
     case'saldozero':definirSaldo(db,0,Date.now());save();closeSheet();render();toast('Saldo zerado. Os próximos registros ajustam o valor.');break;
     case'rendaok':{var rr=db.recs.filter(function(x){return x.id===id})[0];if(!rr)break;rr.st='real';markReg(db,today);save();render();toast('Renda no saldo.','Desfazer',function(){rr.st='prev';save();render()});break}

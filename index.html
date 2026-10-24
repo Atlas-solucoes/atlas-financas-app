@@ -175,7 +175,7 @@ function nEsimoDiaUtil(ym,n,sab){
 }
 function dataRec(t,m){
   if(t.regra&&t.regra.n>0)return nEsimoDiaUtil(m,t.regra.n,!!t.regra.sab);
-  return m+'-'+pad(Math.min(+t.data.slice(8,10),daysInMonth(m)));
+  return m+'-'+pad(Math.min(t.dia||+t.data.slice(8,10),daysInMonth(m)));
 }
 function ensureRecurring(db,today){
   var ym=monthOf(today),added=0;
@@ -865,7 +865,7 @@ function vContas(today){
   if(rec.length)h+='<div class="card"><h3>A receber · '+fmt(sum(rec))+'</h3>'+rec.map(function(x){return recRow(x,today,'edit')}).join('')+'<p class="muted" style="margin:8px 0 0">Toque para marcar como recebido ou mudar a data. Quando cair, o valor entra no seu saldo.</p></div>';
   function sec(t,list,act){return list.length?'<div class="card"><h3>'+t+' · '+fmt(sum(list))+'</h3>'+list.map(function(r){return recRow(r,today,act)}).join('')+'</div>':''}
   h+=sec('Atrasadas',c.atrasadas,'pagar')+sec('Próximos 7 dias',c.semana,'pagar')+sec('Depois neste mês',c.depois,'pagar')+sec('Pagas',c.pagas,'edit');
-  if(!c.atrasadas.length&&!c.semana.length&&!c.depois.length&&!c.pagas.length)h+='<div class="empty">Cadastre aluguel, luz, internet e cartão. O Atlas avisa o que vence e já desconta do seu limite diário.</div>';
+  if(!c.atrasadas.length&&!c.semana.length&&!c.depois.length&&!c.pagas.length)h+='<div class="card"><h3>🧾 Suas contas fixas</h3><p class="muted" style="margin:0">Aluguel, luz, internet, cartão… Toque, diga o valor e o dia. O Atlas avisa o que vence e já desconta do seu limite diário.</p><div class="row"><button class="btn pri" data-act="novaconta">Cadastrar minhas contas fixas</button></div></div>';
   else h+='<p class="muted" style="margin:12px 4px">Toque numa conta para marcar como paga. Contas marcadas como "todo mês" voltam sozinhas no mês seguinte.</p>';
   return h;
 }
@@ -1107,6 +1107,48 @@ function saveConta(){
   db.recs.push({id:uid(),t:'d',v:v,cat:'casa',desc:n.slice(0,60),data:d,st:'prev',fixa:true,rec:$('#cr').checked?'m':null});
   save();closeSheet();render();toast('Conta cadastrada. O limite diário já considera ela.');
 }
+
+/* ---------- contas fixas guiadas ---------- */
+var FIXAS=[['aluguel','🏠','Aluguel','casa'],['condominio','🏢','Condomínio','casa'],['luz','💡','Luz','casa'],['agua','💧','Água','casa'],['gas','🔥','Gás','casa'],['internet','📶','Internet','casa'],['celular','📱','Celular','casa'],['cartao','💳','Cartão de crédito','outros'],['escola','🎓','Escola ou curso','educacao'],['saude','🩺','Plano de saúde','saude'],['stream','🎬','Streaming','lazer'],['transp','🚌','Transporte','transporte'],['outra','➕','Outra conta','casa']];
+function fixasCad(){return db.recs.filter(function(r){return r.t==='d'&&r.fixa&&!r.est&&r.rec==='m'&&!r.from}).sort(function(a,b){return(a.dia||+a.data.slice(8,10))-(b.dia||+b.data.slice(8,10))})}
+function fixaDia(r){return r.dia||+r.data.slice(8,10)}
+function sFixas(primeira){
+  qf={fx:true};
+  var l=fixasCad(),nomes=l.map(function(r){return r.desc.toLowerCase()});
+  var chips=FIXAS.map(function(f){var ja=f[0]!=='outra'&&nomes.indexOf(f[2].toLowerCase())>=0;return'<button type="button" class="chip '+(ja?'on':'')+'" data-act="fxitem" data-k="'+f[0]+'">'+(ja?'✓':f[1])+' '+f[2]+'</button>'}).join('');
+  var lista=l.length?'<div class="card" style="margin:14px 0 0"><h3>Já cadastradas · '+fmt(sum(l))+' por mês</h3>'+l.map(function(r){return'<div class="leg"><span>'+esc(r.desc)+'<br><small class="muted">vence todo dia '+fixaDia(r)+'</small></span><span style="display:flex;gap:10px;align-items:center"><b>'+fmt(r.v)+'</b><button type="button" class="icon-btn" data-act="fxdel" data-id="'+esc(r.id)+'" aria-label="Remover '+esc(r.desc)+'">×</button></span></div>'}).join('')+'</div>':'';
+  openSheet('<h2>Suas contas fixas <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">'+(primeira?'Agora o mais importante: o que você paga todo mês. ':'')+'Toque nas que você paga e diga o valor e o dia. O Atlas desconta isso do seu limite e avisa antes de vencer.</p><div class="chips" style="margin-top:12px">'+chips+'</div>'+lista+'<div class="row"><button class="btn pri" data-act="close">'+(l.length?'Pronto, é isso':'Cadastro depois')+'</button></div>');
+}
+function sFixaItem(k){
+  var f=FIXAS.filter(function(x){return x[0]===k})[0];if(!f)return;
+  qf={fx:true,k:k,cat:f[3],fpago:null};
+  var dia=parseInt(todayStr().slice(8,10),10);
+  openSheet('<h2>'+f[1]+' '+(k==='outra'?'Outra conta':f[2])+' <button class="icon-btn" data-act="fxback" aria-label="Voltar">‹</button></h2>'+
+    (k==='outra'?'<label>Nome da conta</label><input id="fn" maxlength="40" placeholder="Ex.: Academia" autofocus>':'')+
+    '<label>Quanto costuma vir? (se muda, coloque a média)</label><input class="money" id="fv" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00">'+
+    '<label>Que dia do mês vence?</label><div class="chips">'+[1,5,10,15,20,25,30].map(function(d){return'<button type="button" class="chip" data-act="fdia" data-d="'+d+'">'+d+'</button>'}).join('')+'</div>'+
+    '<input id="fd" type="number" min="1" max="31" inputmode="numeric" placeholder="ou digite o dia" style="margin-top:8px">'+
+    '<div id="fpg" hidden><label>Esse dia já passou neste mês. Você já pagou?</label><div class="seg"><button type="button" class="chip" data-act="fpg" data-v="1">Já paguei</button><button type="button" class="chip" data-act="fpg" data-v="0">Ainda não paguei</button></div></div>'+
+    '<div class="row"><button class="btn pri" data-act="fxsave">Adicionar</button></div>');
+}
+function fxPago(){
+  var d=parseInt($('#fd').value,10),hoje=parseInt(todayStr().slice(8,10),10),el=$('#fpg');if(!el)return;
+  var passou=d>=1&&d<=31&&Math.min(d,daysInMonth(monthOf(todayStr())))<hoje;
+  el.hidden=!passou;if(!passou&&qf)qf.fpago=null;
+}
+function fxSave(){
+  var k=qf.k,f=FIXAS.filter(function(x){return x[0]===k})[0],nome=k==='outra'?$('#fn').value.trim():f[2],v=toCents($('#fv').value),d=parseInt($('#fd').value,10),today=todayStr();
+  if(!nome){toast('Dê um nome para a conta.');return}
+  if(!v){toast('Digite o valor aproximado.');return}
+  if(!(d>=1&&d<=31)){toast('Escolha o dia do vencimento (1 a 31).');return}
+  var ym=monthOf(today),data=ym+'-'+pad(Math.min(d,daysInMonth(ym)));
+  if(data<today){
+    if(qf.fpago==null){toast('Diga se você já pagou essa conta neste mês.');return}
+    if(qf.fpago===1){var n=addMonths(ym,1);data=n+'-'+pad(Math.min(d,daysInMonth(n)))}
+  }
+  db.recs.push({id:uid(),t:'d',v:v,cat:qf.cat||'casa',desc:nome.slice(0,60),data:data,dia:d,st:'prev',fixa:true,rec:'m'});
+  save();render();sFixas();toast(nome+' cadastrada: vence todo dia '+d+'.');
+}
 function sMeta(id){
   var m=id?db.metas.filter(function(x){return x.id===id})[0]:null;qf={id:id||null,tipo:m?m.tipo:null};
   openSheet('<h2>'+(m?'Editar plano':'Novo plano')+' <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+
@@ -1224,6 +1266,7 @@ document.addEventListener('input',function(e){
   if(t.id==='qt')onQuick(t.value);
   if(t.id==='qd')t.dataset.auto='0';
   if(t.id==='mp')mSug();
+  if(t.id==='fd')fxPago();
   if(t.dataset&&t.dataset.prem){readPrem();renderCen()}
   if(t.id==='qdt'&&qf){qf.data=t.value;syncQF()}
 });
@@ -1239,7 +1282,7 @@ document.addEventListener('click',function(e){
     case'savesetup':
       var r=toCents($('#sr').value);if(!r){toast('Digite quanto você recebe por mês.');break}
       db.recs=db.recs.filter(function(x){return!(x.rec==='m'&&!x.from&&(x.desc==='Renda do mês'||x.est)&&monthOf(x.data)===monthOf(today))});
-      setup(db,today,r,parseInt($('#sd').value,10),toCents($('#sf').value),$('#sdu').checked?{n:parseInt($('#sd').value,10)||5,sab:$('#sds').checked}:null);var sv0=toCents($('#ss').value);if(sv0>0)definirSaldo(db,sv0,Date.now());markReg(db,today);save();closeSheet();render();toast('Pronto! Veja quanto você pode gastar hoje.');break;
+      setup(db,today,r,parseInt($('#sd').value,10),toCents($('#sf').value),$('#sdu').checked?{n:parseInt($('#sd').value,10)||5,sab:$('#sds').checked}:null);var sv0=toCents($('#ss').value);if(sv0>0)definirSaldo(db,sv0,Date.now());markReg(db,today);save();closeSheet();render();toast('Pronto! Veja quanto você pode gastar hoje.');if(!fixasCad().length)setTimeout(function(){sFixas(true)},400);break;
     case'saldo':sSaldo();break;
     case'novorec':sRecebimento();break;
     case'rquando':{var u=el.getAttribute('data-k')==='util';$('#rqd').classList.toggle('on',!u);$('#rqu').classList.toggle('on',u);$('#rbd').hidden=u;$('#rbu').hidden=!u;break}
@@ -1263,7 +1306,11 @@ document.addEventListener('click',function(e){
     case'saveedit':saveEdit();break;
     case'delrec':{var i=db.recs.map(function(x){return x.id}).indexOf(qf.id);if(i<0)break;var gone=db.recs.splice(i,1)[0];save();closeSheet();render();toast('Excluído.','Desfazer',function(){db.recs.push(gone);save();render()});break}
     case'mes':mesSel=addMonths(mesSel,+el.getAttribute('data-n'));render();break;
-    case'novaconta':sConta();break;case'saveconta':saveConta();break;
+    case'novaconta':sFixas();break;case'saveconta':saveConta();break;
+    case'fxitem':sFixaItem(el.getAttribute('data-k'));break;case'fxback':sFixas();break;case'fxsave':fxSave();break;
+    case'fdia':$('#fd').value=el.getAttribute('data-d');fxPago();break;
+    case'fpg':qf.fpago=+el.getAttribute('data-v');el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;
+    case'fxdel':{var fi=db.recs.map(function(x){return x.id}).indexOf(id);if(fi<0)break;var fg=db.recs.splice(fi,1)[0];var fil=db.recs.filter(function(x){return x.from===fg.id&&x.st==='prev'});db.recs=db.recs.filter(function(x){return!(x.from===fg.id&&x.st==='prev')});save();render();sFixas();toast('Conta removida.','Desfazer',function(){db.recs.push(fg);fil.forEach(function(x){db.recs.push(x)});save();render();sFixas()});break}
     case'novameta':sMeta();break;case'editmeta':sMeta(id);break;case'savemeta':saveMeta();break;
     case'usasug':$('#mm').value=fmt(+el.getAttribute('data-v'));break;
     case'delmeta':{var mi=db.metas.map(function(x){return x.id}).indexOf(qf.id);if(mi<0)break;var mg=db.metas.splice(mi,1)[0];save();closeSheet();render();toast('Plano excluído.','Desfazer',function(){db.metas.push(mg);save();render()});break}

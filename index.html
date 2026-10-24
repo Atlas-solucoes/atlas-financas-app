@@ -163,7 +163,7 @@ function ensureRecurring(db,today){
   return added;
 }
 
-function budget(db,today){
+function budgetMes(db,today){
   var ym=monthOf(today),dim=daysInMonth(ym),dia=+today.slice(8,10),diasRest=dim-dia+1;
   var recs=db.recs.filter(function(r){return monthOf(r.data)===ym});
   var renda=sum(recs.filter(function(r){return r.t==='r'}));
@@ -182,6 +182,62 @@ function budget(db,today){
   out.estourou=restante<0?-restante:0;
   return out;
 }
+
+/* ===== Modelo de caixa: saldo em conta − o que vence até o próximo recebimento ===== */
+function normalizarPts(db,now){
+  db.recs.forEach(function(r){
+    if(r.st==='real'){if(typeof r.pts!=='number')r.pts=(db.saldoTs==null)?0:now}
+    else if(r.pts!=null)delete r.pts;
+  });
+}
+function definirSaldo(db,v,now){normalizarPts(db,now);db.saldo=v;db.saldoTs=now}
+function proximaRenda(db,today){
+  var ym=monthOf(today),fut=db.recs.filter(function(r){return r.t==='r'&&r.st==='prev'&&r.data>today}).map(function(r){return r.data}).sort();
+  if(fut.length)return fut[0];
+  var t=db.recs.filter(function(r){return r.t==='r'&&r.rec==='m'&&!r.from})[0];
+  if(t){
+    var day=+t.data.slice(8,10),d=ym+'-'+pad(Math.min(day,daysInMonth(ym)));
+    if(d>today)return d;
+    var n=addMonths(ym,1);return n+'-'+pad(Math.min(day,daysInMonth(n)));
+  }
+  return addMonths(ym,1)+'-01';
+}
+function contasAteRenda(db,today,prox,dias){
+  var ym=monthOf(today),total=0,itens=[],estimado=false;
+  db.recs.filter(function(r){return r.t==='d'&&r.fixa&&!r.est&&r.st==='prev'&&r.data<prox}).forEach(function(r){total+=r.v;itens.push({desc:r.desc,v:r.v,data:r.data})});
+  var tpls=db.recs.filter(function(t){return t.rec==='m'&&!t.from&&t.t==='d'&&t.fixa&&!t.est});
+  [ym,addMonths(ym,1)].forEach(function(m){
+    tpls.forEach(function(t){
+      if(monthOf(t.data)>m)return;
+      if(db.recs.some(function(x){return(x.id===t.id||x.from===t.id)&&monthOf(x.data)===m}))return;
+      var d=m+'-'+pad(Math.min(+t.data.slice(8,10),daysInMonth(m)));
+      if(d>=today&&d<prox){total+=t.v;itens.push({desc:t.desc,v:t.v,data:d})}
+    });
+  });
+  var temFixas=itens.length||db.recs.some(function(r){return r.t==='d'&&r.fixa&&!r.est&&monthOf(r.data)===ym})||tpls.length;
+  if(!temFixas){
+    var est=db.recs.filter(function(r){return r.est&&monthOf(r.data)===ym});
+    if(est.length){total+=Math.round(sum(est)*dias/30);estimado=true}
+  }
+  return{total:total,itens:itens,estimado:estimado};
+}
+function budgetCaixa(db,today){
+  var ym=monthOf(today),prox=proximaRenda(db,today),dias=Math.max(1,Math.round((parseD(prox)-parseD(today))/864e5)),ts=db.saldoTs,atual=db.saldo,gastoHoje=0;
+  db.recs.forEach(function(r){
+    if(r.st!=='real'||r.est||typeof r.pts!=='number'||!(r.pts>ts))return;
+    atual+=r.t==='r'?r.v:-r.v;
+    if(r.t==='d'&&!r.fixa&&r.data===today)gastoHoje+=r.v;
+  });
+  (db.aportes||[]).forEach(function(a){if(typeof a.ts==='number'&&a.ts>ts)atual-=a.v});
+  var c=contasAteRenda(db,today,prox,dias);
+  var reserva=db.metas.filter(function(m){return!m.feita&&m.mensal>0}).reduce(function(s,m){
+    var feito=(db.aportes||[]).filter(function(a){return a.plano===m.id&&monthOf(a.data)===ym}).reduce(function(x,a){return x+a.v},0);
+    return s+Math.max(0,m.mensal-feito)},0);
+  var disp=atual-c.total-reserva,abertura=disp+gastoHoje,limite=Math.max(0,Math.floor(abertura/dias));
+  return{modo:'caixa',ym:ym,saldo:atual,proxRenda:prox,diasRest:dias,fixas:c.total,fixasItens:c.itens,fixasEstimado:c.estimado,reserva:reserva,
+    variavel:0,renda:0,gastoHoje:gastoHoje,semRenda:false,restante:disp,limiteDia:limite,sobraHoje:limite-gastoHoje,estourou:disp<0?-disp:0};
+}
+function budget(db,today){return(db.saldo!=null&&db.saldoTs!=null)?budgetCaixa(db,today):budgetMes(db,today)}
 
 function posso(db,today,valor){
   var b=budget(db,today);
@@ -251,9 +307,10 @@ function sanitize(o){
   if(o.prem&&typeof o.prem==='object')for(var pk in PREM_PADRAO)if(typeof o.prem[pk]==='number'&&isFinite(o.prem[pk])&&o.prem[pk]>=0&&o.prem[pk]<=1000)prem[pk]=o.prem[pk];
   var log=Array.isArray(o.log)?o.log.filter(function(x){return x&&typeof x.ferramenta==='string'}).slice(-200):[];
   var ids={};metas.forEach(function(m){ids[m.id]=1});
-  var aportes=Array.isArray(o.aportes)?o.aportes.filter(function(a){return a&&typeof a.plano==='string'&&Number.isInteger(a.v)&&a.v>0&&typeof a.data==='string'&&re.test(a.data)}).map(function(a){return{id:String(a.id||uid()),plano:a.plano,v:a.v,data:a.data}}).slice(-500):[];
+  var aportes=Array.isArray(o.aportes)?o.aportes.filter(function(a){return a&&typeof a.plano==='string'&&Number.isInteger(a.v)&&a.v>0&&typeof a.data==='string'&&re.test(a.data)}).map(function(a){return{id:String(a.id||uid()),plano:a.plano,v:a.v,data:a.data,ts:typeof a.ts==='number'?a.ts:undefined}}).slice(-500):[];
+  var saldo=Number.isInteger(o.saldo)&&Math.abs(o.saldo)<100000000000&&typeof o.saldoTs==='number'?o.saldo:null,saldoTs=saldo!=null?o.saldoTs:null;
   var bk=typeof o.bk==='string'&&re.test(o.bk)?o.bk:null,bkAdiar=typeof o.bkAdiar==='string'&&re.test(o.bkAdiar)?o.bkAdiar:null;
-  return{v:1,recs:recs,metas:metas,aportes:aportes,reg:reg,onb:!!o.onb,prem:prem,log:log,bk:bk,bkAdiar:bkAdiar};
+  return{v:1,recs:recs,metas:metas,aportes:aportes,reg:reg,onb:!!o.onb,prem:prem,log:log,bk:bk,bkAdiar:bkAdiar,saldo:saldo,saldoTs:saldoTs};
 }
 
 /* ===== Planos (leme), cenários (motor) e ações do assistente ===== */
@@ -440,7 +497,7 @@ function executar(db,today,nome,a,origem){
       markReg(db,today);out=ok('Registrado: '+(tp==='r'?'entrada':'gasto')+' de '+fmt(a.valor)+'.'+(tp==='d'&&dt===today?limiteTxt():''));break}
     case'consultar_limite_hoje':{
       var b=budget(db,today);
-      out=b.semRenda?no('Informe sua renda do mês para eu calcular o limite.'):ok(b.sobraHoje>=0?'Você pode gastar '+fmt(b.sobraHoje)+' hoje (limite de '+fmt(b.limiteDia)+' por dia, restam '+b.diasRest+' dias).':'Você passou '+fmt(-b.sobraHoje)+' do limite de hoje ('+fmt(b.limiteDia)+').',{limiteDia:b.limiteDia,sobraHoje:b.sobraHoje});break}
+      out=b.semRenda?no('Informe sua renda do mês para eu calcular o limite.'):ok(b.sobraHoje>=0?'Você pode gastar '+fmt(b.sobraHoje)+' hoje (limite de '+fmt(b.limiteDia)+' por dia, restam '+b.diasRest+' dias'+(b.modo==='caixa'?' até você receber de novo, em '+b.proxRenda.slice(8,10)+'/'+b.proxRenda.slice(5,7):'')+').':'Você passou '+fmt(-b.sobraHoje)+' do limite de hoje ('+fmt(b.limiteDia)+').',{limiteDia:b.limiteDia,sobraHoje:b.sobraHoje});break}
     case'posso_comprar':{
       var p=posso(db,today,a.valor);
       if(!p)return no('Informe sua renda do mês para eu calcular.');
@@ -538,7 +595,7 @@ function projecao(db,today,n){
 }
 
 function saude(db,today){
-  var ym=monthOf(today),b=budget(db,today),mr=mesResumo(db,ym),c=contas(db,today),fat=[];
+  var ym=monthOf(today),b=budgetMes(db,today),mr=mesResumo(db,ym),c=contas(db,today),fat=[];
   if(mr.renda>0){
     var poup=Math.max(mr.aportes,b.reserva),pct=poup*100/mr.renda;
     fat.push({id:'poupanca',nome:'Quanto você guarda',pts:Math.min(25,Math.round(pct/20*25)),detalhe:Math.round(pct)+'% da renda (referência comum: 20%)'});
@@ -622,7 +679,7 @@ function dicas(db,today){
 }
 
 function guardarNoPlano(db,m,v,today){
-  m.guardado+=v;db.aportes=db.aportes||[];db.aportes.push({id:uid(),plano:m.id,v:v,data:today});
+  m.guardado+=v;db.aportes=db.aportes||[];db.aportes.push({id:uid(),plano:m.id,v:v,data:today,ts:Date.now()});
   var feito=!m.feita&&m.guardado>=m.alvo;if(feito)m.feita=true;markReg(db,today);return feito;
 }
 
@@ -652,7 +709,7 @@ var KEY='atlas-financas-bolso-v1',db,view='hoje',mesSel=null,qf=null,lastDel=nul
 var $=function(s){return document.querySelector(s)};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function load(){try{var r=localStorage.getItem(KEY);if(r){var v=sanitize(JSON.parse(r));if(v)return v}}catch(e){}return emptyDb()}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){toast('Não foi possível salvar neste navegador. Faça um backup na engrenagem.');return false}}
+function save(){try{normalizarPts(db,Date.now());localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){toast('Não foi possível salvar neste navegador. Faça um backup na engrenagem.');return false}}
 function toast(msg,label,fn){
   var t=$('#toast');t.hidden=false;t.innerHTML='<span>'+esc(msg)+'</span>'+(label?'<button type="button" data-act="toastact">'+esc(label)+'</button>':'');
   t._fn=fn||null;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true},label?7000:4000);
@@ -691,12 +748,12 @@ function vHoje(today){
     var C=2*Math.PI*84,rem,ratio=b.limiteDia>0?b.gastoHoje/b.limiteDia:(b.gastoHoje>0?1:0),col=b.sobraHoje<0||ratio>=1?'#FF8A8A':ratio>=.75?'#F5C451':'#3DDC97',rem=b.limiteDia>0?Math.max(0,Math.min(1,b.sobraHoje/b.limiteDia)):0,off=C*(1-rem);
     hero='<div class="hero"><div class="ring"><svg width="216" height="216" viewBox="0 0 216 216"><circle class="trk" cx="108" cy="108" r="84" fill="none" stroke-width="16"/><circle id="arc" class="bar" cx="108" cy="108" r="84" fill="none" stroke="'+col+'" stroke-width="16" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" data-off="'+off.toFixed(1)+'" data-c="'+C.toFixed(1)+'"/></svg>'+
       '<div class="mid"><small>'+(b.sobraHoje<0?'Passou do limite de hoje':'Você pode gastar hoje')+'</small><b class="'+(b.sobraHoje<0?'neg':'')+'">'+fmt(b.sobraHoje<0?-b.sobraHoje:b.sobraHoje)+'</b><small>de '+fmt(b.limiteDia)+' por dia</small></div></div>'+
-      '<div class="sub">'+(b.estourou?'O mês já passou do planejado em '+fmt(b.estourou)+'. Hoje o limite é zero.':'Restam '+b.diasRest+(b.diasRest===1?' dia':' dias')+' · sobram '+fmt(b.restante)+' no mês')+'</div></div>';
+      '<div class="sub">'+(b.modo==='caixa'?(b.estourou?'As contas e reservas até '+fmt0d(b.proxRenda)+' passam do seu saldo em '+fmt(b.estourou)+'. Hoje o valor é zero.':'Até '+fmt0d(b.proxRenda)+' (quando você recebe de novo): '+b.diasRest+(b.diasRest===1?' dia':' dias')+' · sobram '+fmt(b.restante)):(b.estourou?'O mês já passou do planejado em '+fmt(b.estourou)+'. Hoje o limite é zero.':'Restam '+b.diasRest+(b.diasRest===1?' dia':' dias')+' · sobram '+fmt(b.restante)+' no mês'))+'</div></div>';
   }
   var bkh=bkPrecisa(db,today)?'<div class="card"><h3>💾 Hora de fazer um backup</h3><p class="muted" style="margin:0">Seus dados ficam só neste aparelho. Se o navegador for limpo ou o celular trocado, tudo se perde. Leva 10 segundos.</p><div class="row"><button class="btn sm pri" data-act="gear">Fazer backup</button><button class="btn sm" data-act="bkdepois">Lembrar em 3 dias</button></div></div>':'';
   var acts='<div class="row"><button class="btn pri" data-act="add">Registrar gasto</button><button class="btn" data-act="posso">Posso comprar?</button></div>';
   if(!db.reg[today])acts+='<div class="row"><button class="btn" data-act="nada">✅ Hoje eu não gastei nada</button></div>';
-  var h=hero+acts+bkh;
+  var h=hero+acts+bkh+vCaixaCards(today,b)+vComoCalc(today,b);
   var c=contas(db,today),att=c.atrasadas.concat(c.semana.filter(function(r){return r.data<=addDays(today,3)}));
   if(att.length){h+='<div class="card"><h3>Pede atenção</h3>'+att.slice(0,4).map(function(r){return recRow(r,today,'pagar')}).join('')+'<p class="muted" style="margin:8px 0 0">Toque na conta para marcar como paga.</p></div>'}
   var w=semana(db,today);
@@ -708,6 +765,42 @@ function vHoje(today){
   var ms=db.metas.filter(function(m){return!m.feita}).slice(0,2);
   if(ms.length)h+='<div class="card"><h3>Seus planos</h3>'+ms.map(function(m){return metaMini(m,today)}).join('')+'<div class="row"><button class="btn sm" data-act="nav" data-v="metas">Ver planos</button></div></div>';
   if(!db.recs.length&&!b.semRenda)h+='<div class="empty">Toque no + para registrar o primeiro gasto.</div>';
+  return h;
+}
+function fmt0d(d){return d.slice(8,10)+'/'+d.slice(5,7)}
+function rendaPendente(today){
+  if(db.saldoTs==null)return[];
+  var sd=ymd(new Date(db.saldoTs));
+  return db.recs.filter(function(r){return r.t==='r'&&r.st==='prev'&&r.data<=today&&r.data>=sd});
+}
+function vCaixaCards(today,b){
+  var h='';
+  if(b.modo!=='caixa'){
+    if(!b.semRenda)h+='<div class="card"><h3>💳 Quanto você tem em conta hoje?</h3><p class="muted" style="margin:0">Hoje o app calcula só pela renda do mês. Informando o saldo, o valor de "quanto posso gastar" passa a considerar o dinheiro que você realmente tem e as contas que vencem até receber de novo.</p><div class="row"><button class="btn sm pri" data-act="saldo">Informar meu saldo</button></div></div>';
+    return h;
+  }
+  rendaPendente(today).forEach(function(r){h+='<div class="card"><h3>💰 Sua renda já caiu?</h3><p class="muted" style="margin:0">'+esc(r.desc||'Renda')+' de '+fmt(r.v)+' (dia '+r.data.slice(8,10)+'). Ao confirmar, o valor entra no seu saldo.</p><div class="row"><button class="btn sm pri" data-act="rendaok" data-id="'+esc(r.id)+'">Sim, já caiu</button><button class="btn sm" data-act="edit" data-id="'+esc(r.id)+'">Caiu outro valor</button></div></div>'});
+  return h;
+}
+function vComoCalc(today,b){
+  if(b.modo==='caixa'){
+    var h='<div class="card"><h3>Como chegamos nesse valor</h3>';
+    if(!db.recs.some(function(r){return r.t==='d'&&r.fixa&&!r.est}))h+='<div class="alert warn">Você ainda não cadastrou contas fixas (aluguel, luz, internet…). Sem elas o valor fica <b>alto demais</b>. <div class="row"><button class="btn sm pri" data-act="novaconta">Cadastrar conta fixa</button></div></div>';
+    var rows=[['Saldo em conta (estimado)',b.saldo,'+','considera o que você registrou depois de informar o saldo'],['Contas a pagar até '+fmt0d(b.proxRenda),b.fixas,'-',b.fixasEstimado?'estimativa proporcional das contas fixas':(b.fixasItens.length?b.fixasItens.length+(b.fixasItens.length===1?' conta':' contas'):'nenhuma até lá')],['Reserva dos planos',b.reserva,'-',b.reserva?'o que falta guardar neste mês':'nenhuma']];
+    rows.forEach(function(x){h+='<div class="leg"><span>'+esc(x[0])+'<br><small class="muted">'+esc(x[3])+'</small></span><b style="color:'+(x[2]==='+'?'var(--green)':'var(--ink)')+'">'+(x[2]==='+'?'+ ':'− ')+fmt(x[1])+'</b></div>'});
+    h+='<div class="leg" style="border-top:1px solid var(--line);margin-top:4px"><span><b>Disponível até '+fmt0d(b.proxRenda)+'</b></span><b>'+fmt(b.restante)+'</b></div>';
+    h+='<p class="muted" style="margin:8px 0 0">Por dia = (disponível + o que você gastou hoje) ÷ '+b.diasRest+(b.diasRest===1?' dia':' dias')+' até receber de novo = <b>'+fmt(b.limiteDia)+'</b>.</p><div class="row"><button class="btn sm" data-act="saldo">Atualizar saldo</button></div></div>';
+    return h;
+  }
+  if(b.semRenda)return'';
+  var ym=monthOf(today),fx=db.recs.filter(function(r){return r.t==='d'&&r.fixa&&monthOf(r.data)===ym}),
+    pagas=sum(fx.filter(function(r){return r.st==='real'})),abertas=sum(fx.filter(function(r){return r.st!=='real'}));
+  var rows=[['Renda do mês',b.renda,'+'],['Contas fixas',b.fixas,'-',fx.length?(fmt(pagas)+' pagas · '+fmt(abertas)+' a pagar'):'nenhuma cadastrada'],['Reserva dos planos',b.reserva,'-',b.reserva?'guardar por mês':'nenhuma'],['Gastos do mês (fora as fixas)',b.variavel,'-']];
+  var h='<div class="card"><h3>Como chegamos nesse valor</h3>';
+  if(!fx.length)h+='<div class="alert warn">Você ainda não cadastrou contas fixas (aluguel, luz, internet…). Sem elas o limite por dia fica <b>alto demais</b>. <div class="row"><button class="btn sm pri" data-act="novaconta">Cadastrar conta fixa</button></div></div>';
+  rows.forEach(function(x){h+='<div class="leg"><span>'+esc(x[0])+(x[3]?'<br><small class="muted">'+esc(x[3])+'</small>':'')+'</span><b style="color:'+(x[2]==='+'?'var(--green)':'var(--ink)')+'">'+(x[2]==='+'?'+ ':'− ')+fmt(x[1])+'</b></div>'});
+  h+='<div class="leg" style="border-top:1px solid var(--line);margin-top:4px"><span><b>Sobra no mês</b></span><b>'+fmt(b.restante)+'</b></div>';
+  h+='<p class="muted" style="margin:8px 0 0">Limite por dia = (sobra no mês + o que você gastou hoje) ÷ '+b.diasRest+(b.diasRest===1?' dia restante':' dias restantes')+' = <b>'+fmt(b.limiteDia)+'</b>. A renda do mês conta inteira, mesmo a que ainda vai cair.</p></div>';
   return h;
 }
 function rotaTxt(p,r){
@@ -921,9 +1014,13 @@ function pRes(){
   if(p.meta&&p.diasMeta)h+='<p class="muted">Esse valor equivale a cerca de '+p.diasMeta+(p.diasMeta===1?' dia':' dias')+' da sua meta "'+esc(p.meta)+'".</p>';
   el.innerHTML=h;
 }
+function sSaldo(){
+  openSheet('<h2>Seu saldo <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Quanto você tem hoje na conta (e em dinheiro, se quiser contar). A partir daqui o Atlas desconta seus gastos e as contas que você pagar.</p><label>Saldo de hoje</label><input class="money" id="sv" inputmode="numeric" placeholder="R$ 0,00" autofocus><div class="row"><button class="btn pri" data-act="savesaldo">Salvar saldo</button></div><div class="row"><button class="btn" data-act="saldozero">Meu saldo é zero</button></div>');
+}
 function sSetup(){
   openSheet('<h2>Vamos começar <button class="icon-btn" data-act="skipsetup" aria-label="Pular">×</button></h2><p class="muted" style="margin:0">Duas informações e você já vê quanto pode gastar por dia. Dá para ajustar depois.</p>'+
     '<label>Quanto você recebe por mês?</label><input class="money" id="sr" inputmode="numeric" placeholder="R$ 0,00">'+
+    '<label>Quanto você tem em conta hoje? (opcional, deixa o cálculo bem mais fiel)</label><input class="money" id="ss" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00">'+
     '<label>Em que dia do mês cai?</label><input id="sd" type="number" min="1" max="28" value="5" inputmode="numeric">'+
     '<label>Quanto vai embora em contas fixas? (aluguel, luz, internet…) aproximado</label><input class="money" id="sf" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00">'+
     '<div class="row"><button class="btn pri" data-act="savesetup">Ver meu limite por dia</button></div><div class="row"><button class="btn" data-act="skipsetup">Agora não</button></div>');
@@ -936,7 +1033,7 @@ function sEdit(id){
     (r.t==='d'&&!r.fixa?'<div id="qcats"><label>Categoria</label><div class="chips">'+catChips(r.cat)+'</div></div>':'')+
     '<label>Descrição</label><input id="ed" maxlength="60" value="'+esc(r.desc)+'">'+
     '<label>Data</label><input type="date" id="edt" value="'+esc(r.data)+'">'+
-    (r.fixa&&!r.est?'<label>Situação</label><div class="seg"><button type="button" class="chip '+(r.st==='prev'?'on':'')+'" data-act="est" data-s="prev">A pagar</button><button type="button" class="chip '+(r.st==='real'?'on':'')+'" data-act="est" data-s="real">Paga</button></div>':'')+
+    ((r.fixa&&!r.est)||r.t==='r'?'<label>Situação</label><div class="seg"><button type="button" class="chip '+(r.st==='prev'?'on':'')+'" data-act="est" data-s="prev">'+(r.t==='r'?'Prevista':'A pagar')+'</button><button type="button" class="chip '+(r.st==='real'?'on':'')+'" data-act="est" data-s="real">'+(r.t==='r'?'Recebida':'Paga')+'</button></div>':'')+
     '<div class="row"><button class="btn pri" data-act="saveedit">Salvar</button><button class="btn danger" data-act="delrec">Excluir</button></div>');
   qf.st=r.st;
 }
@@ -944,7 +1041,7 @@ function saveEdit(){
   var r=db.recs.filter(function(x){return x.id===qf.id})[0];if(!r)return closeSheet();
   var v=toCents($('#ev').value);if(!v){toast('Digite o valor.');return}
   r.v=v;r.desc=$('#ed').value.trim().slice(0,60);var d=$('#edt').value;if(/^\d{4}-\d{2}-\d{2}$/.test(d))r.data=d;
-  if(r.t==='d'&&!r.fixa)r.cat=qf.cat;if(r.fixa&&!r.est)r.st=qf.st;
+  if(r.t==='d'&&!r.fixa)r.cat=qf.cat;if((r.fixa&&!r.est)||r.t==='r')r.st=qf.st;
   save();closeSheet();render();toast('Alteração salva.');
 }
 function sConta(){
@@ -995,6 +1092,7 @@ function sGuardei(id){
 function sGear(){
   openSheet('<h2>Ajustes <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+
     '<p class="muted" style="margin:0">Seus dados ficam só neste aparelho e neste navegador. Faça backup de vez em quando.</p>'+
+    '<div class="row"><button class="btn" data-act="saldo">Atualizar meu saldo</button></div>'+
     '<div class="row"><button class="btn" data-act="setup">Ajustar renda e contas fixas</button></div>'+
     '<div class="row"><button class="btn" data-act="copybk">Copiar backup</button><button class="btn" data-act="dlbk">Baixar arquivo</button></div>'+
     '<div class="row"><button class="btn" data-act="csv">Exportar lançamentos (planilha CSV)</button></div>'+
@@ -1093,7 +1191,11 @@ document.addEventListener('click',function(e){
     case'savesetup':
       var r=toCents($('#sr').value);if(!r){toast('Digite quanto você recebe por mês.');break}
       db.recs=db.recs.filter(function(x){return!(x.rec==='m'&&!x.from&&(x.desc==='Renda do mês'||x.est)&&monthOf(x.data)===monthOf(today))});
-      setup(db,today,r,parseInt($('#sd').value,10),toCents($('#sf').value));markReg(db,today);save();closeSheet();render();toast('Pronto! Esse é o seu limite por dia.');break;
+      setup(db,today,r,parseInt($('#sd').value,10),toCents($('#sf').value));var sv0=toCents($('#ss').value);if(sv0>0)definirSaldo(db,sv0,Date.now());markReg(db,today);save();closeSheet();render();toast('Pronto! Veja quanto você pode gastar hoje.');break;
+    case'saldo':sSaldo();break;
+    case'savesaldo':{var sv=toCents($('#sv').value);if(!sv){toast('Digite o saldo, ou toque em "Meu saldo é zero".');break}definirSaldo(db,sv,Date.now());save();closeSheet();render();toast('Saldo atualizado.');break}
+    case'saldozero':definirSaldo(db,0,Date.now());save();closeSheet();render();toast('Saldo zerado. Os próximos registros ajustam o valor.');break;
+    case'rendaok':{var rr=db.recs.filter(function(x){return x.id===id})[0];if(!rr)break;rr.st='real';markReg(db,today);save();render();toast('Renda no saldo.','Desfazer',function(){rr.st='prev';save();render()});break}
     case'tipo':qf.t=el.getAttribute('data-t');syncQF();break;
     case'cat':qf.cat=el.getAttribute('data-k');if($('#qv')||$('#ev'))syncQFcats();break;
     case'dia':qf.data=addDays(today,+el.getAttribute('data-d'));syncQF();break;

@@ -1149,6 +1149,10 @@ function fxSave(){
   db.recs.push({id:uid(),t:'d',v:v,cat:qf.cat||'casa',desc:nome.slice(0,60),data:data,dia:d,st:'prev',fixa:true,rec:'m'});
   save();render();sFixas();toast(nome+' cadastrada: vence todo dia '+d+'.');
 }
+function sPagar(id){
+  var r=db.recs.filter(function(x){return x.id===id})[0];if(!r)return;qf={id:id};
+  openSheet('<h2>Pagar: '+esc(r.desc)+' <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Vencimento dia '+r.data.slice(8,10)+'/'+r.data.slice(5,7)+'. Conferiu o valor? Se veio diferente, corrija: o limite diário se ajusta.</p><label>Valor pago</label><input class="money" id="pgv" style="font-size:22px" inputmode="numeric" value="'+fmt(r.v)+'"><div class="row"><button class="btn pri" data-act="confpag">Confirmar pagamento</button></div>');
+}
 function sMeta(id){
   var m=id?db.metas.filter(function(x){return x.id===id})[0]:null;qf={id:id||null,tipo:m?m.tipo:null};
   openSheet('<h2>'+(m?'Editar plano':'Novo plano')+' <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+
@@ -1300,7 +1304,8 @@ document.addEventListener('click',function(e){
     case'saveadd':saveAdd();break;
     case'voz':voz();break;
     case'nada':markReg(db,today);save();render();toast('Anotado. Dia em dia!');break;
-    case'pagar':{var rc=db.recs.filter(function(x){return x.id===id})[0];if(!rc)break;if(rc.st==='prev'&&rc.fixa){rc.st='real';markReg(db,today);save();render();toast('Conta marcada como paga.','Desfazer',function(){rc.st='prev';save();render()})}else sEdit(id);break}
+    case'pagar':{var rc=db.recs.filter(function(x){return x.id===id})[0];if(!rc)break;if(rc.st==='prev'&&rc.fixa)sPagar(id);else sEdit(id);break}
+    case'confpag':{var rp=db.recs.filter(function(x){return x.id===qf.id})[0];if(!rp){closeSheet();break}var nv=toCents($('#pgv').value);if(!nv){toast('Digite o valor que você pagou.');break}var ov=rp.v;rp.v=nv;rp.st='real';markReg(db,today);save();closeSheet();render();toast(nv===ov?'Conta marcada como paga.':'Paga. Valor ajustado para '+fmt(nv)+'.','Desfazer',function(){rp.v=ov;rp.st='prev';save();render()});break}
     case'edit':sEdit(id);break;
     case'est':qf.st=el.getAttribute('data-s');el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;
     case'saveedit':saveEdit();break;

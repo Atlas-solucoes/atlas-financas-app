@@ -113,6 +113,17 @@ nav .fab{width:62px;height:62px;border-radius:50%;background:var(--green);color:
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <script>
+/* Rede de segurança: se algo quebrar ao abrir, mostra o motivo na tela (em vez de página em branco) e oferece limpar o cache do app. */
+(function(){
+  function limpar(){try{var p=[];if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));if(window.caches)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));Promise.all(p).then(function(){location.replace(location.pathname+'?r='+Date.now())},function(){location.reload()})}catch(e){location.reload()}}
+  window.__limparCache=limpar;
+  if(/[?&]limpar=1/.test(location.search))limpar();
+  function mostra(m){try{if(document.body&&document.body.innerText.replace(/\s/g,'').length>40)return;var d=document.createElement('div');d.style.cssText='font:16px system-ui;padding:24px;max-width:480px;margin:0 auto;color:#16202E';d.innerHTML='<h2 style="margin:0 0 8px">Não consegui abrir o app</h2><p>Toque em "Limpar e abrir de novo". Se repetir, mande esta mensagem para o Daniel:</p><pre style="white-space:pre-wrap;background:#eef2f7;padding:10px;border-radius:8px;font-size:13px"></pre><button style="font:inherit;padding:14px 22px;border:0;border-radius:999px;background:#17458F;color:#fff">Limpar e abrir de novo</button>';d.querySelector('pre').textContent=String(m);d.querySelector('button').onclick=limpar;(document.body||document.documentElement).appendChild(d)}catch(e){}}
+  window.addEventListener('error',function(e){setTimeout(function(){mostra((e.message||'erro')+' ('+(e.lineno||'?')+':'+(e.colno||'?')+')')},400)});
+  window.addEventListener('unhandledrejection',function(e){setTimeout(function(){mostra('promessa: '+((e.reason&&e.reason.message)||e.reason))},400)});
+})();
+</script>
+<script>
 /*LOGIC*/
 var CATS=[['mercado','Mercado','🛒'],['comida','Comida fora','🍽️'],['transporte','Transporte','🚗'],['casa','Casa','🏠'],['saude','Saúde','💊'],['lazer','Lazer','🎬'],['compras','Compras','🛍️'],['educacao','Educação','📚'],['outros','Outros','•']];
 var KW={mercado:['mercado','supermercado','feira','padaria','hortifruti','acougue','atacadao'],comida:['restaurante','lanche','ifood','pizza','cafe','almoco','jantar','bar','sorvete','hamburguer'],transporte:['uber','99','gasolina','combustivel','onibus','metro','estacionamento','pedagio','taxi'],casa:['aluguel','luz','agua','internet','condominio','gas','energia'],saude:['farmacia','remedio','medico','consulta','dentista','exame'],lazer:['cinema','show','netflix','spotify','jogo','streaming','viagem','passeio'],compras:['roupa','sapato','loja','shopee','amazon','presente'],educacao:['curso','escola','livro','faculdade','mensalidade']};

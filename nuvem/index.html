@@ -239,6 +239,38 @@ function novaContaFixa(db,today,o){
   if(data<today){if(o.pago==null)return{erro:'Esse dia já passou neste mês. Diga se você já pagou essa conta.',precisaPago:true};if(o.pago){var nx=addMonths(ym,1);data=nx+'-'+pad(Math.min(d,daysInMonth(nx)))}}
   var r={id:uid(),t:'d',v:v,cat:o.cat||'casa',desc:n.slice(0,60),data:data,dia:d,st:'prev',fixa:true,rec:'m'};db.recs.push(r);return{rec:r};
 }
+function novaRenda(db,today,o){
+  var n=String(o.nome||'').trim().slice(0,50),tipo=o.tipo;
+  if(!n)return{erro:'Dê um nome para essa renda.'};
+  var ym=monthOf(today),out=[];
+  function diaOk(x){return x&&((x.util&&x.util>=1&&x.util<=23)||(x.dia>=1&&x.dia<=31))}
+  function modelo(desc,v,x){
+    var r={id:uid(),t:'r',v:v,cat:'outros',desc:desc.slice(0,60),st:'prev',fixa:false,rec:'m'};
+    if(x.util){r.regra={n:x.util,sab:!!x.sab};r.dia=null;delete r.dia}else r.dia=x.dia;
+    r.data=dataRec(r,ym);
+    if(o.recebida&&r.data<=today)r.st='real';
+    return r;
+  }
+  if(tipo==='unica'){
+    if(!Number.isInteger(o.v)||o.v<=0)return{erro:'Digite o valor.'};
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(o.data||''))return{erro:'Escolha a data.'};
+    out.push({id:uid(),t:'r',v:o.v,cat:'outros',desc:n,data:o.data,st:o.recebida?'real':'prev',fixa:false});
+  }else if(tipo==='dividida'){
+    var ps=(o.partes||[]).filter(function(x){return x&&Number.isInteger(x.v)&&x.v>0});
+    if(ps.length<2)return{erro:'Informe pelo menos 2 partes com valor.'};
+    if(ps.length>6)return{erro:'No máximo 6 partes.'};
+    if(!ps.every(diaOk))return{erro:'Escolha o dia de cada parte.'};
+    ps.forEach(function(x,i){out.push(modelo(n+' (parte '+(i+1)+' de '+ps.length+')',x.v,x))});
+  }else{
+    if(!Number.isInteger(o.v)||o.v<=0)return{erro:'Digite o valor.'};
+    if(!diaOk(o))return{erro:'Escolha em que dia cai.'};
+    out.push(modelo(n,o.v,o));
+  }
+  out.forEach(function(r){db.recs.push(r)});
+  return{recs:out,total:out.reduce(function(a,r){return a+r.v},0)};
+}
+function rendasCad(db){return db.recs.filter(function(r){return r.t==='r'&&r.rec==='m'&&!r.from}).sort(function(a,b){return(a.dia||+a.data.slice(8,10))-(b.dia||+b.data.slice(8,10))})}
+function rendasUnicas(db,today){return db.recs.filter(function(r){return r.t==='r'&&!r.rec&&!r.from&&r.data>=addDays(today,-31)}).sort(function(a,b){return a.data<b.data?-1:1})}
 function proximoRecebimento(db,today){
   var ym=monthOf(today),c=[];
   db.recs.filter(function(x){return x.t==='r'&&x.st==='prev'&&x.data>today}).forEach(function(x){c.push({data:x.data,desc:x.desc,v:x.v})});
@@ -476,6 +508,7 @@ var FERRAMENTAS=[
  {nome:'cenario_periodos',muta:false,descricao:'O que entra, sai e sobra em cada período (entre recebimentos), incluindo programados e projetos.',params:{}},
  {nome:'quando_posso',muta:false,descricao:'A partir de quando cabe uma compra ou conserto sem deixar nenhum período no vermelho.',params:{valor:'centavos (inteiro)',nome:'opcional'}},
  {nome:'programar_gasto',muta:true,descricao:'Programa um gasto futuro (compra, conserto) para entrar no cenário.',params:{nome:'texto',valor:'centavos',data:'AAAA-MM-DD, opcional (padrão: a primeira data em que cabe)'}},
+ {nome:'cadastrar_renda',muta:true,descricao:'Cadastra uma renda: todo mês (aluguel, assinatura, salário), dividida em partes (várias datas no mês) ou só uma vez (venda).',params:{nome:'texto',tipo:'mensal|dividida|unica',valor:'centavos (mensal/unica)',dia:'1 a 31 (mensal)',data:'AAAA-MM-DD (unica)',recebida:'true|false (unica)',partes:'lista [{dia,valor}] (dividida)'}},
  {nome:'cadastrar_conta_fixa',muta:true,descricao:'Cadastra uma conta fixa mensal com valor e dia do vencimento.',params:{nome:'texto',valor:'centavos',dia:'1 a 31',ja_pagou:'true|false, só se o dia já passou neste mês'}}
 ];
 function isMuta(nome){return FERRAMENTAS.some(function(f){return f.nome===nome&&f.muta})}
@@ -611,6 +644,10 @@ function executar(db,today,nome,a,origem){
       if(!dq){var q2=quandoPosso(cenario(db,today,6,typeof pjExtras==='function'?pjExtras():[]),a.valor);if(!q2.ok)return no('Não cabe nos próximos 6 meses: faltam '+fmt(q2.falta)+'. Diga uma data se quiser programar mesmo assim.');dq=q2.data}
       if(!db.prog)db.prog=[];db.prog.push({id:uid(),nome:String(a.nome).slice(0,40),v:a.valor,data:dq});markReg(db,today);
       out=ok('Programado: "'+a.nome+'" de '+fmt(a.valor)+' para '+dq.slice(8,10)+'/'+dq.slice(5,7)+'. O cenário já considera.');break}
+    case'cadastrar_renda':{
+      var nr=novaRenda(db,today,{nome:a.nome,tipo:a.tipo||'mensal',v:a.valor,dia:a.dia,data:a.data,recebida:a.recebida===true,partes:(a.partes||[]).map(function(x){return{dia:x.dia,v:x.valor}})});
+      if(nr.erro)return no(nr.erro);
+      markReg(db,today);out=ok('Renda "'+a.nome+'" cadastrada: '+fmt(nr.total)+(a.tipo==='unica'?'.':' por mês.'));break}
     case'cadastrar_conta_fixa':{
       var nf=novaContaFixa(db,today,{nome:a.nome,v:a.valor,dia:a.dia,pago:typeof a.ja_pagou==='boolean'?a.ja_pagou:null});
       if(nf.erro)return no(nf.erro+(nf.precisaPago?' Ex.: "já paguei" ou "ainda não paguei".':''));
@@ -1308,7 +1345,7 @@ function vExtrato(today){
 }
 
 function vContas(today){
-  var c=contas(db,today),h='<div class="row" style="margin-top:0"><button class="btn dark" data-act="novaconta">+ Nova conta</button><button class="btn" data-act="novorec">+ Recebimento</button></div>';
+  var c=contas(db,today),h='<div class="row" style="margin-top:0"><button class="btn dark" data-act="novaconta">+ Nova conta</button><button class="btn" data-act="rendas">💰 Minhas rendas</button></div>';
   var rec=db.recs.filter(function(x){return x.t==='r'&&x.st==='prev'&&monthOf(x.data)>=monthOf(addDays(today,-31))}).sort(function(a,b){return a.data<b.data?-1:1});
   if(rec.length)h+='<div class="card"><h3>A receber · '+fmt(sum(rec))+'</h3>'+rec.map(function(x){return recRow(x,today,'edit')}).join('')+'<p class="muted" style="margin:8px 0 0">Toque para marcar como recebido ou mudar a data. Quando cair, o valor entra no seu saldo.</p></div>';
   function sec(t,list,act){return list.length?'<div class="card"><h3>'+t+' · '+fmt(sum(list))+'</h3>'+list.map(function(r){return recRow(r,today,act)}).join('')+'</div>':''}
@@ -1719,6 +1756,41 @@ function fxSave(){
   if(k==='outra'&&$('#fsv')&&$('#fsv').checked){var R=fxRef();if(R.extras.length<20&&!fxAtalhos().some(function(x){return x[2].toLowerCase()===nome.toLowerCase()}))R.extras.push({k:'x'+String(uid()).replace(/[^\w]/g,'').slice(0,10),ic:qf.ic||'⭐',nome:nome.slice(0,30),cat:qf.cat})}
   save();render();sFixas();toast(nome+' cadastrada: vence todo dia '+d+'.');
 }
+/* ---------- minhas rendas (várias fontes) ---------- */
+var RENDAS=[['sal','💼','Salário','mensal'],['div','🔀','Salário dividido','dividida'],['alu','🏠','Aluguel que recebo','mensal'],['sw','💻','Venda de software','unica'],['rec','🔁','Assinatura ou mensalidade','mensal'],['venda','🛒','Venda de um bem','unica'],['outra','➕','Outra renda','mensal']];
+function rendaRot(r){return(r.regra?'cai no '+r.regra.n+'º dia útil':'cai todo dia '+(r.dia||+r.data.slice(8,10)))}
+function sRendas(){
+  qf={rd:true};var today=todayStr(),l=rendasCad(db),u=rendasUnicas(db,today);
+  function linha(r,rot,act){return'<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="leg" style="border:0;padding:0"><span>'+esc(r.desc)+'<br><small class="muted">'+rot+'</small></span><b>'+fmt(r.v)+'</b></div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn sm" data-act="edit" data-id="'+esc(r.id)+'" aria-label="Editar '+esc(r.desc)+'">Editar</button><button type="button" class="btn sm danger" data-act="rdel" data-id="'+esc(r.id)+'" aria-label="Excluir '+esc(r.desc)+'">Excluir</button></div></div>'}
+  var lista=(l.length?'<div class="card" style="margin:14px 0 0"><h3>Todo mês · '+fmt(sum(l))+'</h3>'+l.map(function(r){return linha(r,rendaRot(r))}).join('')+'</div>':'')+(u.length?'<div class="card" style="margin:14px 0 0"><h3>Avulsas (últimos 30 dias e próximas)</h3>'+u.map(function(r){return linha(r,fmt0d(r.data)+(r.st==='prev'?' · a receber':' · recebida'))}).join('')+'</div>':'');
+  openSheet('<h2>Suas rendas <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Cadastre cada fonte separada: salário (inteiro ou dividido em datas), aluguel, vendas, assinaturas. O limite por dia usa tudo que entra.</p><div class="chips" style="margin-top:10px">'+RENDAS.map(function(f){return'<button type="button" class="chip" data-act="ritem" data-k="'+f[0]+'">'+f[1]+' '+esc(f[2])+'</button>'}).join('')+'</div>'+lista+'<div class="row"><button class="btn" data-act="close">Fechar</button></div>');
+}
+function rParteHtml(i,d){return'<div class="leg rpt" style="gap:8px"><span style="flex:1"><small class="muted">Parte '+(i+1)+' · dia</small><input class="rpd" type="number" min="1" max="31" inputmode="numeric" value="'+d+'"></span><span style="flex:1.4"><small class="muted">Valor</small><input class="money rpv" inputmode="numeric" placeholder="R$ 0,00"></span></div>'}
+function sRendaItem(k){
+  var f=RENDAS.filter(function(x){return x[0]===k})[0];if(!f)return;
+  qf={rd:true,k:k,tp:f[3],rec:true};
+  openSheet('<h2>'+f[1]+' '+esc(f[2])+' <button class="icon-btn" data-act="rback" aria-label="Voltar">‹</button></h2>'+
+    '<label>Nome</label><input id="rnm" maxlength="50" value="'+(k==='outra'?'':esc(f[2]))+'" placeholder="Ex.: Aluguel da sala"'+(k==='outra'?' autofocus':'')+'>'+
+    '<label>Como cai?</label><div class="seg"><button type="button" class="chip" data-act="rtp" data-t="mensal" id="rtM">Todo mês</button><button type="button" class="chip" data-act="rtp" data-t="dividida" id="rtD">Dividida em partes</button><button type="button" class="chip" data-act="rtp" data-t="unica" id="rtU">Só uma vez</button></div>'+
+    '<div id="rbM"><label>Valor</label><input class="money" id="rvm" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00"><label>Que dia do mês cai?</label><div class="chips">'+[1,5,10,15,20,25,30].map(function(d){return'<button type="button" class="chip" data-act="rdia" data-d="'+d+'">'+d+'</button>'}).join('')+'</div><input id="rdm" type="number" min="1" max="31" inputmode="numeric" placeholder="ou digite o dia" style="margin-top:8px"><label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="rum" style="width:auto"> É no Nº dia útil (usa o número acima)</label></div>'+
+    '<div id="rbD" hidden><p class="muted" style="margin:8px 0 0">Ex.: adiantamento dia 20 e o restante no 5º dia do mês seguinte. Informe cada parte.</p><div id="rpts">'+rParteHtml(0,20)+rParteHtml(1,5)+'</div><div class="row"><button type="button" class="btn sm" data-act="rpmais">＋ Outra parte</button><span class="muted" id="rptot" style="align-self:center"></span></div></div>'+
+    '<div id="rbU" hidden><label>Valor</label><input class="money" id="rvu" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00"><label>Data</label><input type="date" id="rdu" value="'+todayStr()+'"><div class="seg" style="margin-top:8px"><button type="button" class="chip on" id="rgR" data-act="rrec" data-v="1">Já recebi</button><button type="button" class="chip" id="rgA" data-act="rrec" data-v="0">A receber</button></div></div>'+
+    '<div class="row"><button class="btn pri" data-act="rsave">Adicionar</button></div>');
+  rTipo(f[3]);
+}
+function rTipo(t){
+  qf.tp=t;[['M','mensal'],['D','dividida'],['U','unica']].forEach(function(x){$('#rt'+x[0]).classList.toggle('on',x[1]===t);$('#rb'+x[0]).hidden=x[1]!==t});
+}
+function rSoma(){var t=0;document.querySelectorAll('#rpts .rpv').forEach(function(i){t+=toCents(i.value)});var e=$('#rptot');if(e)e.textContent=t?'Total: '+fmt(t):''}
+function rSave(){
+  var o={nome:$('#rnm').value,tipo:qf.tp},hoje=todayStr(),tp=qf.tp;
+  if(qf.tp==='mensal'){o.v=toCents($('#rvm').value);var d=parseInt($('#rdm').value,10);if($('#rum').checked)o.util=d;else o.dia=d;o.recebida=false}
+  else if(qf.tp==='unica'){o.v=toCents($('#rvu').value);o.data=$('#rdu').value;o.recebida=qf.rec!==false}
+  else{o.partes=[].map.call(document.querySelectorAll('#rpts .rpt'),function(el){return{dia:parseInt(el.querySelector('.rpd').value,10),v:toCents(el.querySelector('.rpv').value)}})}
+  var r=novaRenda(db,hoje,o);if(r.erro){toast(r.erro);return}
+  if(tp==='unica'&&o.recebida)markReg(db,hoje);
+  save();render();sRendas();toast(o.nome.trim()+' cadastrada: '+fmt(r.total)+(tp==='unica'?'.':' por mês.'));
+}
 function sPagar(id){
   var r=db.recs.filter(function(x){return x.id===id})[0];if(!r)return;qf={id:id};
   var tid=r.from||r.id,rec=r.rec==='m'&&db.recs.some(function(x){return x.id===tid});
@@ -1837,7 +1909,7 @@ function aVoz(){
 /* ---------- eventos ---------- */
 document.addEventListener('input',function(e){
   var t=e.target;
-  if(t.classList&&t.classList.contains('money')){var c=toCents(t.value);t.value=c?fmt(c):'';if(t.id==='pv')pRes();if(t.id==='ma')mSug()}
+  if(t.classList&&t.classList.contains('money')){var c=toCents(t.value);t.value=c?fmt(c):'';if(t.id==='pv')pRes();if(t.id==='ma')mSug();if(t.classList.contains('rpv'))rSoma()}
   if(t.id==='bx'){buscaExt=t.value;var xl=$('#xl');if(xl)xl.innerHTML=extratoLista(mesSel,todayStr())}
   if(t.id==='qt')onQuick(t.value);
   if(t.id==='qd')t.dataset.auto='0';
@@ -1861,6 +1933,13 @@ document.addEventListener('click',function(e){
       db.recs=db.recs.filter(function(x){return!(x.rec==='m'&&!x.from&&(x.desc==='Renda do mês'||x.est)&&monthOf(x.data)===monthOf(today))});
       setup(db,today,r,parseInt($('#sd').value,10),($('#sf')?toCents($('#sf').value):0),$('#sdu').checked?{n:parseInt($('#sd').value,10)||5,sab:$('#sds').checked}:null);var sv0=toCents($('#ss').value);if(sv0>0)definirSaldo(db,sv0,Date.now());markReg(db,today);save();closeSheet();render();toast('Pronto! Veja quanto você pode gastar hoje.');break;
     case'saldo':sSaldo();break;
+    case'rendas':sRendas();break;case'rback':sRendas();break;case'ritem':sRendaItem(el.getAttribute('data-k'));break;
+    case'rtp':rTipo(el.getAttribute('data-t'));break;
+    case'rdia':{$('#rdm').value=el.getAttribute('data-d');document.querySelectorAll('[data-act="rdia"]').forEach(function(c){c.classList.toggle('on',c===el)});break}
+    case'rrec':{qf.rec=el.getAttribute('data-v')==='1';$('#rgR').classList.toggle('on',qf.rec);$('#rgA').classList.toggle('on',!qf.rec);break}
+    case'rpmais':{var pc=document.querySelectorAll('#rpts .rpt').length;if(pc>=6){toast('No máximo 6 partes.');break}$('#rpts').insertAdjacentHTML('beforeend',rParteHtml(pc,10));break}
+    case'rsave':rSave();break;
+    case'rdel':{var ri=db.recs.map(function(x){return x.id}).indexOf(id);if(ri<0)break;var rg=db.recs.splice(ri,1)[0];var ril=db.recs.filter(function(x){return x.from===rg.id&&x.st==='prev'});db.recs=db.recs.filter(function(x){return!(x.from===rg.id&&x.st==='prev')});save();render();sRendas();toast('Renda removida.','Desfazer',function(){db.recs.push(rg);ril.forEach(function(x){db.recs.push(x)});save();render();sRendas()});break}
     case'novorec':sRecebimento();break;
     case'rquando':{var u=el.getAttribute('data-k')==='util';$('#rqd').classList.toggle('on',!u);$('#rqu').classList.toggle('on',u);$('#rbd').hidden=u;$('#rbu').hidden=!u;break}
     case'saverec':{var rv=toCents($('#rv').value),rn=$('#rn').value.trim(),rd=$('#rd').value,util=!$('#rbu').hidden;if(!rn){toast('Dê um nome para o recebimento.');break}if(!rv){toast('Digite o valor.');break}

@@ -900,7 +900,7 @@ function vHoje(today){
   if(!db.reg[today])acts+='<div class="row"><button class="btn" data-act="nada">✅ Hoje eu não gastei nada</button></div>';
   var h=hero+acts+bkh+vCaixaCards(today,b)+vComoCalc(today,b);
   var c=contas(db,today),att=c.atrasadas.concat(c.semana.filter(function(r){return r.data<=addDays(today,3)}));
-  if(att.length){h+='<div class="card"><h3>Pede atenção</h3>'+att.slice(0,4).map(function(r){return recRow(r,today,'pagar')}).join('')+'<p class="muted" style="margin:8px 0 0">Toque na conta para marcar como paga.</p></div>'}
+  if(att.length){h+='<div class="card"><h3>Pede atenção</h3>'+att.slice(0,4).map(function(r){return recRow(r,today,'pagar')}).join('')+'<p class="muted" style="margin:8px 0 0">Toque na conta para pagar, editar ou excluir.</p></div>'}
   var w=semana(db,today);
   if(w.cur>0||w.prev>0){
     var msg=w.prev>0?(w.cur<=w.prev?'Você gastou '+fmt(w.prev-w.cur)+' a menos que na semana passada.':'Você gastou '+fmt(w.cur-w.prev)+' a mais que na semana passada.'):'Primeira semana com registros. Continue assim.';
@@ -977,7 +977,7 @@ function vContas(today){
   if(est0.length)h+='<div class="card"><h3>Estimativa inicial · '+fmt(sum(est0))+'</h3>'+est0.map(function(x){return recRow(x,today,'edit')}).join('')+'<p class="muted" style="margin:8px 0 0">Valor aproximado que você informou no começo. Toque para ajustar ou excluir; depois de cadastrar suas contas de verdade, pode tirar.</p></div>';
   h+=sec('Atrasadas',c.atrasadas,'pagar')+sec('Próximos 7 dias',c.semana,'pagar')+sec('Depois neste mês',c.depois,'pagar')+sec('Pagas',c.pagas,'edit');
   if(!c.atrasadas.length&&!c.semana.length&&!c.depois.length&&!c.pagas.length)h+='<div class="card"><h3>🧾 Suas contas fixas</h3><p class="muted" style="margin:0">Aluguel, luz, internet, cartão… Toque, diga o valor e o dia. O Atlas avisa o que vence e já desconta do seu limite diário.</p><div class="row"><button class="btn pri" data-act="novaconta">Cadastrar minhas contas fixas</button></div></div>';
-  else h+='<p class="muted" style="margin:12px 4px">Toque numa conta para marcar como paga. Contas marcadas como "todo mês" voltam sozinhas no mês seguinte.</p>';
+  else h+='<p class="muted" style="margin:12px 4px">Toque numa conta para pagar, editar ou excluir. Contas marcadas como "todo mês" voltam sozinhas no mês seguinte.</p>';
   return h;
 }
 
@@ -1192,6 +1192,7 @@ function sEdit(id){
     '<label>Descrição</label><input id="ed" maxlength="60" value="'+esc(r.desc)+'">'+
     '<label>Data</label><input type="date" id="edt" value="'+esc(r.data)+'">'+
     ((r.fixa&&!r.est)||r.t==='r'?'<label>Situação</label><div class="seg"><button type="button" class="chip '+(r.st==='prev'?'on':'')+'" data-act="est" data-s="prev">'+(r.t==='r'?'Prevista':'A pagar')+'</button><button type="button" class="chip '+(r.st==='real'?'on':'')+'" data-act="est" data-s="real">'+(r.t==='r'?'Recebida':'Paga')+'</button></div>':'')+
+    (r.fixa&&!r.est&&r.st==='prev'?'<div class="row"><button class="btn pri" data-act="pagarx" data-id="'+esc(id)+'">✅ Pagar esta conta</button></div>':'')+
     '<div class="row"><button class="btn pri" data-act="saveedit">Salvar</button><button class="btn danger" data-act="delrec">Excluir</button></div>');
   qf.st=r.st;
 }
@@ -1428,7 +1429,8 @@ document.addEventListener('click',function(e){
     case'saveadd':saveAdd();break;
     case'voz':voz();break;
     case'nada':markReg(db,today);save();render();toast('Anotado. Dia em dia!');break;
-    case'pagar':{var rc=db.recs.filter(function(x){return x.id===id})[0];if(!rc)break;if(rc.st==='prev'&&rc.fixa)sPagar(id);else sEdit(id);break}
+    case'pagar':{var rc=db.recs.filter(function(x){return x.id===id})[0];if(!rc)break;sEdit(id);break}
+    case'pagarx':sPagar(id);break;
     case'confpag':{var rp=db.recs.filter(function(x){return x.id===qf.id})[0];if(!rp){closeSheet();break}var nv=toCents($('#pgv').value);if(!nv){toast('Digite o valor que você pagou.');break}var ov=rp.v;rp.v=nv;rp.st='real';markReg(db,today);save();closeSheet();render();toast(nv===ov?'Conta marcada como paga.':'Paga. Valor ajustado para '+fmt(nv)+'.','Desfazer',function(){rp.v=ov;rp.st='prev';save();render()});break}
     case'edit':sEdit(id);break;
     case'est':qf.st=el.getAttribute('data-s');el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;

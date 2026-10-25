@@ -1,0 +1,10 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagnóstico</title></head>
+<body style="font:16px system-ui;padding:20px"><h2>Diagnóstico Atlas Finanças</h2><pre id="o" style="white-space:pre-wrap;font-size:14px">carregando…</pre>
+<button id="b" style="font:inherit;padding:14px 22px;border:0;border-radius:999px;background:#17458F;color:#fff">Limpar cache e abrir o app</button>
+<script>
+var o=document.getElementById('o'),t=['Página de diagnóstico: OK','Navegador: '+navigator.userAgent];
+function p(){o.textContent=t.join('\n')}p();
+try{t.push('localStorage chaves: '+Object.keys(localStorage).map(function(k){return k+'='+localStorage.getItem(k).length}).join(', '))}catch(e){t.push('localStorage ERRO: '+e.message)}
+(navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(r){t.push('Service workers: '+r.length+' '+r.map(function(x){return x.scope}).join(' '))}):Promise.resolve(t.push('sem service worker'))).then(function(){return window.caches?caches.keys().then(function(k){t.push('Caches: '+k.join(', '))}):0}).then(function(){return fetch('index.html?d='+Date.now(),{cache:'no-store'}).then(function(r){return r.text().then(function(x){t.push('index.html: HTTP '+r.status+', '+x.length+' bytes, tem proteção: '+(x.indexOf('Rede de segurança')>-1)+', sw: '+(x.indexOf('registerr')>-1))})})}).catch(function(e){t.push('ERRO: '+e.message)}).then(p);
+document.getElementById('b').onclick=function(){Promise.all([navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(x){return x.unregister()}))}):0,window.caches?caches.keys().then(function(k){return Promise.all(k.map(function(x){return caches.delete(x)}))}):0]).then(function(){location.href='./?r='+Date.now()})};
+</script></body></html>

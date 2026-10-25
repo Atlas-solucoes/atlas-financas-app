@@ -749,7 +749,7 @@ function save(){try{normalizarPts(db,Date.now());localStorage.setItem(KEY,JSON.s
 
 /* ---------- NUVEM: login e sincronização (Supabase, via REST, sem biblioteca) ---------- */
 var NV_URL='https://rzjhwtefrblxwlzbgjjk.supabase.co',NV_KEY='sb_publishable_NbQwwmQLEGazxiHJHHmiwg_3mF5Plp0',NV_K='atlas-financas-nuvem-v1';
-var N=nvLoad(),nvT=null,nvBusy=false,nvMute=false;
+var N=nvLoad(),nvT=null,nvBusy=false,nvMute=false,nvAuth=false;
 function nvLoad(){try{var r=JSON.parse(localStorage.getItem(NV_K));if(r&&r.tok)return r}catch(e){}return{}}
 function nvStore(){try{localStorage.setItem(NV_K,JSON.stringify(N))}catch(e){}}
 function nvLogado(){return!!(N&&N.tok&&N.uid)}
@@ -762,6 +762,8 @@ function nvMsg(j){
   if(c==='email_not_confirmed')return'Falta confirmar o e-mail. Abra a mensagem que enviamos e toque no link.';
   if(c==='over_email_send_rate_limit'||c==='over_request_rate_limit')return'Muitas tentativas. Espere alguns minutos.';
   if(c==='signup_disabled')return'Cadastro desativado no momento.';
+  if(c==='unexpected_failure'||c==='500')return'O servidor se atrapalhou, geralmente por toques repetidos. Sua conta pode já ter sido criada: toque em Entrar e use a mesma senha.';
+  if(c==='email_address_invalid'||c==='validation_failed')return'Confira o e-mail e a senha (8 caracteres ou mais) e tente de novo.';
   return m||'Não deu certo. Tente de novo.';
 }
 function nvReq(path,opt,semAuth){
@@ -848,8 +850,11 @@ function nvForm(criar){
   function erro(t){er.textContent=t;er.hidden=false}
   if(!/^\S+@\S+\.\S+$/.test(e))return erro('Digite um e-mail válido.');
   if(pw.length<(criar?8:1))return erro(criar?'A senha precisa ter 8 caracteres ou mais.':'Digite a senha.');
-  er.hidden=true;nvEntrar(e,pw,criar).then(function(r){
-    if(r.erro)return erro(r.erro);
+  if(nvAuth)return;nvAuth=true;er.hidden=true;
+  var bt=document.querySelectorAll('#sheet [data-act=nventrar],#sheet [data-act=nvcriar]');bt.forEach(function(b){b.disabled=true});er.hidden=false;er.textContent='Aguarde um instante…';
+  nvEntrar(e,pw,criar).then(function(r){
+    nvAuth=false;bt.forEach(function(b){b.disabled=false});
+    if(r.erro)return erro(r.erro);er.hidden=true;
     closeSheet();render();nvSync().then(function(){if(N.estado==='ok')toast('Conectado. Seus dados estão na nuvem.')});
   });
 }

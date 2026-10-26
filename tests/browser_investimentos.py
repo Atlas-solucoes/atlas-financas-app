@@ -10,6 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from urllib.parse import urlparse, parse_qs
 from playwright.sync_api import sync_playwright, expect
+from browser_pagamentos import exercise_wallet
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS = ROOT / 'test-results'
@@ -99,6 +100,7 @@ def run():
             assert b.evaluate('db.investimentos[0].id') == a_id
             assert b.evaluate('db.recs[0].v') == 5000
             evidence.append('PASS: UI → bridge → REST simulado → segundo navegador → recarga; lançamento preservado')
+            evidence.append(exercise_wallet(a, b, ARTIFACTS))
             for width in (320, 360, 390):
                 a.set_viewport_size({'width': width, 'height': 844})
                 assert a.evaluate('document.documentElement.scrollWidth <= innerWidth')

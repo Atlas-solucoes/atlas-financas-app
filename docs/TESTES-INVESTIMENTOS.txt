@@ -1,22 +1,22 @@
-✔ 100% CDI anual reproduz taxa efetiva e IR de 17,5% (1.739104ms)
-✔ LCI/LCA sem IR e IOF nesta simulação PF (0.392538ms)
-✔ aporte no fim do período não rende nem paga impostos (0.165622ms)
-✔ taxa zero preserva principal com aportes (0.441779ms)
-✔ limites regressivos de IR (0.194599ms)
-✔ IOF termina em 30 dias (0.378479ms)
-✔ não considerar vazio um documento com investimentos (0.524266ms)
-✔ envio pendente mantém dirty quando há edição durante PATCH (1.194267ms)
-✔ bridge reverte alteração se armazenamento falhar (1.371346ms)
-✔ service worker não intercepta API nem apaga caches de outros apps (2.277024ms)
-✔ troca de conta antes do envio bloqueia requisição antiga (2.090255ms)
-✔ resposta recebida após logout não chega ao consumidor (1.233574ms)
-✔ refresh pendente da conta anterior não restaura sessão antiga (1.080756ms)
-✔ falha na cópia de segurança impede substituir documento local (3.083602ms)
-✔ falha ao persistir nuvem reverte documento sem confirmar revisão (1.091188ms)
-✔ bridge com sanitizador real preserva módulo financeiro existente (3.155029ms)
-✔ dois dispositivos simulados sincronizam aplicações sem apagar lançamentos (3.50311ms)
-✔ alterações simultâneas entram em conflito e preservam os dois documentos (2.514826ms)
-✔ saldo zero confirmado não torna documento vazio (0.087168ms)
+✔ 100% CDI anual reproduz taxa efetiva e IR de 17,5% (5.636328ms)
+✔ LCI/LCA sem IR e IOF nesta simulação PF (0.585687ms)
+✔ aporte no fim do período não rende nem paga impostos (0.186311ms)
+✔ taxa zero preserva principal com aportes (0.226066ms)
+✔ limites regressivos de IR (0.398159ms)
+✔ IOF termina em 30 dias (0.242629ms)
+✔ não considerar vazio um documento com investimentos (0.675512ms)
+✔ envio pendente mantém dirty quando há edição durante PATCH (1.284849ms)
+✔ bridge reverte alteração se armazenamento falhar (1.37731ms)
+✔ service worker não intercepta API nem apaga caches de outros apps (2.447253ms)
+✔ troca de conta antes do envio bloqueia requisição antiga (1.856724ms)
+✔ resposta recebida após logout não chega ao consumidor (1.384083ms)
+✔ refresh pendente da conta anterior não restaura sessão antiga (15.688052ms)
+✔ falha na cópia de segurança impede substituir documento local (25.823487ms)
+✔ falha ao persistir nuvem reverte documento sem confirmar revisão (1.392042ms)
+✔ bridge com sanitizador real preserva módulo financeiro existente (4.638117ms)
+✔ dois dispositivos simulados sincronizam aplicações sem apagar lançamentos (9.446204ms)
+✔ alterações simultâneas entram em conflito e preservam os dois documentos (6.522687ms)
+✔ saldo zero confirmado não torna documento vazio (0.089844ms)
 ℹ tests 19
 ℹ suites 0
 ℹ pass 19
@@ -24,4 +24,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 38.172201
+ℹ duration_ms 137.879268

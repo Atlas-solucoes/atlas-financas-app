@@ -183,6 +183,7 @@ nav button.on:after{content:'';display:block;width:18px;height:3px;border-radius
 @media(min-width:760px){#app{padding-top:28px}.sheet{align-items:center}.sheet .pn{border-radius:24px;max-height:88dvh}nav .in{gap:10px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
 
+.rpt{flex-wrap:wrap}.rpt>span{min-width:100px}.pn select{max-width:100%}
 </style></head>
 <body>
 <div id="app"></div>
@@ -201,6 +202,30 @@ nav button.on:after{content:'';display:block;width:18px;height:3px;border-radius
 </script>
 <script>
 /*LOGIC*/
+/* Carteira: valores em centavos. Limites e benefícios não são renda bancária. */
+var PG_TIPOS={banco:'Banco / conta',cartao:'Cartão de crédito',va:'Vale-alimentação',vr:'Vale-refeição'};
+function pgMeio(d,id){return(d.meios||[]).find(function(m){return m.id===id})||null}
+function pgBeneficio(m){return m&&(m.tipo==='va'||m.tipo==='vr')}
+function pgData(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&ymd(parseD(s))===s}
+function pgCent(v){return Number.isSafeInteger(v)&&Math.abs(v)<100000000000}
+function pgSanMeios(arr){var ids={};return(Array.isArray(arr)?arr:[]).filter(function(m){if(!m||typeof m.id!=='string'||!m.id||m.id.length>80||ids[m.id]||!Object.prototype.hasOwnProperty.call(PG_TIPOS,m.tipo)||typeof m.nome!=='string'||!m.nome.trim()||!pgCent(m.saldo)||!Number.isFinite(m.saldoTs))return false;ids[m.id]=true;return true}).slice(0,100).map(function(m){return{id:m.id,nome:m.nome.trim().slice(0,60),tipo:m.tipo,instituicao:String(m.instituicao||'').slice(0,60),saldo:m.saldo,saldoTs:m.saldoTs,limite:pgCent(m.limite)&&m.limite>=0?m.limite:0,fechamento:Number.isInteger(m.fechamento)&&m.fechamento>=1&&m.fechamento<=31?m.fechamento:1,vencimento:Number.isInteger(m.vencimento)&&m.vencimento>=1&&m.vencimento<=31?m.vencimento:10,contaId:typeof m.contaId==='string'?m.contaId.slice(0,80):'',arquivado:!!m.arquivado}})}
+function pgSanRec(r){
+  if(typeof r.meioId!=='string'||r.meioId.length>80)delete r.meioId;
+  if(!pgData(r.pgVenc))delete r.pgVenc;
+  if(!pgData(r.pgPagoEm)||!Number.isFinite(r.pgPts)||typeof r.pgOrigem!=='string'){delete r.pgPagoEm;delete r.pgPts;delete r.pgOrigem}
+  if(!Number.isInteger(r.pgN)||r.pgN<1||r.pgN>48)delete r.pgN;
+  if(!Number.isInteger(r.pgI)||r.pgI<1||r.pgI>48)delete r.pgI;
+}
+function pgVencimento(m,data,n){var ym=monthOf(data),fecha=ym+'-'+pad(Math.min(m.fechamento,daysInMonth(ym)));if(data>=fecha)ym=addMonths(ym,1);var fim=ym+'-'+pad(Math.min(m.fechamento,daysInMonth(ym))),v=ym+'-'+pad(Math.min(m.vencimento,daysInMonth(ym)));if(v<=fim)ym=addMonths(ym,1);ym=addMonths(ym,n||0);return ym+'-'+pad(Math.min(m.vencimento,daysInMonth(ym)))}
+function pgSaldo(d,id){var m=pgMeio(d,id);if(!m)return 0;if(m.tipo==='cartao')return m.limite-d.recs.filter(function(r){return r.meioId===id&&r.t==='d'&&r.st==='real'&&!r.est&&!r.pgPagoEm}).reduce(function(s,r){return s+r.v},0);
+  var v=m.saldo;d.recs.forEach(function(r){var ts=Number.isFinite(r.pts)?r.pts:0;if(r.meioId===id&&r.st==='real'&&!r.est&&ts>m.saldoTs)v+=r.t==='r'?r.v:-r.v;if(m.tipo==='banco'&&r.pgOrigem===id&&r.pgPagoEm&&r.pgPts>m.saldoTs)v-=r.v});return v}
+function pgReservado(d,id){var ym=monthOf(todayStr()),plan=(d.prog||[]).filter(function(x){return x.meioId===id}).reduce(function(s,x){return s+x.v},0);return plan+(d.metas||[]).filter(function(m){var medio=pgMeio(d,id);return m.meioId===id&&(!medio||medio.tipo!=='cartao')}).reduce(function(s,m){var feito=(d.aportes||[]).filter(function(a){return a.plano===m.id&&monthOf(a.data)===ym}).reduce(function(v,a){return v+a.v},0);return s+(m.guardado||0)+(m.feita?0:Math.max(0,(m.mensal||0)-feito))},0)}
+function pgValidar(d,id,t,cat,v,n,ignorar){var m=pgMeio(d,id);if(!id){if(d.pgSomarBancos)return'Escolha a conta ou o meio deste registro.';return null}if(!m||m.arquivado)return'Escolha um meio ativo da carteira.';if(t==='r'&&m.tipo==='cartao')return'Cartão de crédito não recebe renda. Escolha um banco.';if(t==='d'&&m.tipo==='va'&&cat!=='mercado')return'Use o vale-alimentação na categoria Mercado.';if(t==='d'&&m.tipo==='vr'&&cat!=='comida')return'Use o vale-refeição na categoria Comida fora.';if(n>1&&m.tipo!=='cartao')return'Parcelamento é exclusivo do cartão de crédito.';if(t==='d'&&(pgBeneficio(m)||m.tipo==='cartao')){var atual=pgSaldo(d,id)+(ignorar&&ignorar.meioId===id&&ignorar.st==='real'&&!ignorar.pgPagoEm?ignorar.v:0);if(v>atual)return m.tipo==='cartao'?'A compra ultrapassa o limite disponível do cartão.':'Saldo insuficiente neste benefício.'}return null}
+function pgRegistrar(d,o){var n=o.n||1;if(!pgCent(o.v)||o.v<=0||!pgData(o.data)||!Number.isInteger(n)||n<1||n>48||o.v<n)return{erro:'Confira valor, data e parcelas (1 a 48).'};var e=pgValidar(d,o.meioId,o.t,o.cat,o.v,n);if(e)return{erro:e};var m=pgMeio(d,o.meioId),out=[],grupo=uid(),now=Math.max(Date.now(),m?m.saldoTs+1:0);for(var i=0;i<n;i++){var r={id:uid(),t:o.t,v:Math.floor(o.v/n)+(i<o.v%n?1:0),cat:o.cat||'outros',desc:String(o.desc||'').slice(0,60),data:o.data,st:'real',fixa:false,pts:now};if(m)r.meioId=m.id;if(m&&m.tipo==='cartao'){r.pgVenc=pgVencimento(m,o.data,i);r.pgGrupo=grupo;r.pgI=i+1;r.pgN=n}out.push(r)}d.recs.push.apply(d.recs,out);return{recs:out}}
+function pgFaturas(d){var by={};d.recs.forEach(function(r){var m=pgMeio(d,r.meioId);if(!m||m.tipo!=='cartao'||r.t!=='d'||r.st!=='real'||r.est||!r.pgVenc)return;var key=m.id+'|'+r.pgVenc,g=by[key]||(by[key]={id:m.id,data:r.pgVenc,nome:m.nome,total:0,aberto:0});g.total+=r.v;if(!r.pgPagoEm)g.aberto+=r.v});return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return a.data.localeCompare(b.data)})}
+function pgPagarFatura(d,id,data,conta,hoje){var b=pgMeio(d,conta),it=d.recs.filter(function(r){return r.meioId===id&&r.pgVenc===data&&r.st==='real'&&!r.est&&!r.pgPagoEm});if(!b||b.tipo!=='banco'||b.arquivado)return'Escolha o banco que pagou a fatura.';if(!it.length)return'Esta fatura já está quitada.';var total=sum(it);if(total>pgSaldo(d,conta))return'O saldo desta conta não cobre a fatura. Confira o saldo antes de pagar.';it.forEach(function(r){r.pgPagoEm=hoje;r.pgPts=Math.max(Date.now(),b.saldoTs+1);r.pgOrigem=conta});return null}
+function pgCaixa(d){if(d._pgCaixa)return d;var out=Object.assign({},d,{_pgCaixa:true});out.recs=d.recs.filter(function(r){return!pgBeneficio(pgMeio(d,r.meioId))}).map(function(r){var m=pgMeio(d,r.meioId);if(!m||m.tipo!=='cartao'||r.t!=='d')return r;return Object.assign({},r,{data:r.pgPagoEm||r.pgVenc||r.data,pts:r.pgPagoEm?r.pgPts:undefined,st:r.pgPagoEm?'real':'prev',fixa:!r.pgPagoEm})});out.metas=d.metas.filter(function(m){return!pgBeneficio(pgMeio(d,m.meioId))});out.aportes=(d.aportes||[]).filter(function(a){var m=d.metas.find(function(x){return x.id===a.plano});return!pgBeneficio(pgMeio(d,a.meioId||(m&&m.meioId)))});out.prog=(d.prog||[]).filter(function(p){return!pgBeneficio(pgMeio(d,p.meioId))}).map(function(p){var m=pgMeio(d,p.meioId);return m&&m.tipo==='cartao'?Object.assign({},p,{data:pgVencimento(m,p.data)}):p});if(d.pgSomarBancos&&(d.meios||[]).some(function(m){return m.tipo==='banco'})){out.saldo=(d.meios||[]).filter(function(m){return m.tipo==='banco'}).reduce(function(s,m){return s+pgSaldo(d,m.id)},0)-out.metas.reduce(function(s,m){return s+(m.guardado||0)},0);out.saldoTs=Date.now()+1}return out}
+
 var CATS=[['mercado','Mercado','🛒'],['comida','Comida fora','🍽️'],['transporte','Transporte','🚗'],['casa','Casa','🏠'],['saude','Saúde','💊'],['lazer','Lazer','🎬'],['compras','Compras','🛍️'],['educacao','Educação','📚'],['outros','Outros','•']];
 var KW={mercado:['mercado','supermercado','feira','padaria','hortifruti','acougue','atacadao'],comida:['restaurante','lanche','ifood','pizza','cafe','almoco','jantar','bar','sorvete','hamburguer'],transporte:['uber','99','gasolina','combustivel','onibus','metro','estacionamento','pedagio','taxi'],casa:['aluguel','luz','agua','internet','condominio','gas','energia'],saude:['farmacia','remedio','medico','consulta','dentista','exame'],lazer:['cinema','show','netflix','spotify','jogo','streaming','viagem','passeio'],compras:['roupa','sapato','loja','shopee','amazon','presente'],educacao:['curso','escola','livro','faculdade','mensalidade']};
 function pad(n){return(n<10?'0':'')+n}
@@ -216,7 +241,7 @@ function fmt(c){if(c==null)return'—';var neg=c<0;c=Math.abs(c);return(neg?'-':
 function toCents(s){var d=String(s==null?'':s).replace(/\D/g,'').slice(0,11);return d?parseInt(d,10):0}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')}
-function emptyDb(){return{v:1,recs:[],metas:[],aportes:[],reg:{},onb:false,prem:Object.assign({},PREM_PADRAO),log:[],prog:[],prio:[],investimentos:[]}}
+function emptyDb(){return{v:1,recs:[],metas:[],aportes:[],reg:{},onb:false,prem:Object.assign({},PREM_PADRAO),log:[],prog:[],prio:[],investimentos:[],meios:[],pgSchema:1,pgSomarBancos:false}}
 function sum(a){return a.reduce(function(s,r){return s+r.v},0)}
 function catLabel(k){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===k)return CATS[i][1];return'Outros'}
 function catIcon(k){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===k)return CATS[i][2];return'•'}
@@ -273,13 +298,14 @@ function ensureRecurring(db,today){
     var exists=db.recs.some(function(r){return(r.from===t.id||r.id===t.id)&&monthOf(r.data)===ym});
     if(exists)return;
     var nova={id:uid(),t:t.t,v:t.v,cat:t.cat,desc:t.desc,data:dataRec(t,ym),st:t.est?'real':'prev',fixa:!!t.fixa,est:!!t.est,rec:'m',from:t.id};
-    if(t.regra)nova.regra=t.regra;db.recs.push(nova);
+    if(t.regra)nova.regra=t.regra;if(t.meioId)nova.meioId=t.meioId;db.recs.push(nova);
     added++;
   });
   return added;
 }
 
 function budgetMes(db,today){
+  db=pgCaixa(db);
   var ym=monthOf(today),dim=daysInMonth(ym),dia=+today.slice(8,10),diasRest=dim-dia+1;
   var recs=db.recs.filter(function(r){return monthOf(r.data)===ym});
   var renda=sum(recs.filter(function(r){return r.t==='r'}));
@@ -302,7 +328,7 @@ function budgetMes(db,today){
 /* ===== Modelo de caixa: saldo em conta − o que vence até o próximo recebimento ===== */
 function normalizarPts(db,now){
   db.recs.forEach(function(r){
-    if(r.st==='real'){if(typeof r.pts!=='number')r.pts=(db.saldoTs==null)?0:now}
+    if(r.st==='real'){if(typeof r.pts!=='number'){var m=pgMeio(db,r.meioId);r.pts=m?Math.max(now,m.saldoTs+1):(db.saldoTs==null?0:now)}}
     else if(r.pts!=null)delete r.pts;
   });
 }
@@ -322,6 +348,7 @@ function novaRenda(db,today,o){
   function diaOk(x){return x&&((x.util&&x.util>=1&&x.util<=23)||(x.dia>=1&&x.dia<=31))}
   function modelo(desc,v,x){
     var r={id:uid(),t:'r',v:v,cat:'outros',desc:desc.slice(0,60),st:'prev',fixa:false,rec:'m'};
+    if(x.meioId||o.meioId)r.meioId=x.meioId||o.meioId;
     if(x.util){r.regra={n:x.util,sab:!!x.sab};r.dia=null;delete r.dia}else r.dia=x.dia;
     r.data=dataRec(r,ym);
     if(o.recebida&&r.data<=today)r.st='real';
@@ -342,6 +369,7 @@ function novaRenda(db,today,o){
     if(!diaOk(o))return{erro:'Escolha em que dia cai.'};
     out.push(modelo(n,o.v,o));
   }
+  for(var oi=0;oi<out.length;oi++){if(!out[oi].meioId&&o.meioId)out[oi].meioId=o.meioId;var oe=pgValidar(db,out[oi].meioId,'r','outros',out[oi].v,1);if(oe)return{erro:oe}}
   out.forEach(function(r){db.recs.push(r)});
   return{recs:out,total:out.reduce(function(a,r){return a+r.v},0)};
 }
@@ -383,6 +411,7 @@ function contasAteRenda(db,today,prox,dias){
   return{total:total,itens:itens,estimado:estimado};
 }
 function budgetCaixa(db,today){
+  db=pgCaixa(db);
   var ym=monthOf(today),pr=proximoRecebimento(db,today),prox=pr.data,dias=Math.max(1,Math.round((parseD(prox)-parseD(today))/864e5)),ts=db.saldoTs,atual=db.saldo,gastoHoje=0;
   db.recs.forEach(function(r){
     if(r.st!=='real'||r.est||typeof r.pts!=='number'||!(r.pts>ts))return;
@@ -398,7 +427,7 @@ function budgetCaixa(db,today){
   return{modo:'caixa',ym:ym,saldo:atual,proxRenda:prox,proxItens:pr.itens,proxSemData:pr.semData,diasRest:dias,fixas:c.total,fixasItens:c.itens,fixasEstimado:c.estimado,reserva:reserva,
     variavel:0,renda:0,gastoHoje:gastoHoje,semRenda:false,restante:disp,limiteDia:limite,sobraHoje:limite-gastoHoje,estourou:disp<0?-disp:0};
 }
-function budget(db,today){return(db.saldo!=null&&db.saldoTs!=null)?budgetCaixa(db,today):budgetMes(db,today)}
+function budget(db,today){db=pgCaixa(db);return(db.saldo!=null&&db.saldoTs!=null)?budgetCaixa(db,today):budgetMes(db,today)}
 
 function posso(db,today,valor){
   var b=budget(db,today);
@@ -463,6 +492,7 @@ function sanitize(o){
   var re=/^\d{4}-\d{2}-\d{2}$/;
   var recs=o.recs.filter(function(r){return r&&typeof r.id==='string'&&(r.t==='d'||r.t==='r')&&Number.isInteger(r.v)&&r.v>0&&typeof r.data==='string'&&re.test(r.data)});
   recs.forEach(function(r){if(r.regra&&Number.isInteger(r.regra.n)&&r.regra.n>=1&&r.regra.n<=23)r.regra={n:r.regra.n,sab:!!r.regra.sab};else delete r.regra;r.desc=String(r.desc||'').slice(0,60);r.cat=catLabel(r.cat)==='Outros'&&r.cat!=='outros'?'outros':r.cat;r.st=r.st==='prev'?'prev':'real';r.fixa=!!r.fixa});
+  recs.forEach(pgSanRec);
   var metas=o.metas.filter(function(m){return m&&typeof m.id==='string'&&Number.isInteger(m.alvo)&&m.alvo>0});
   metas.forEach(function(m){m.nome=String(m.nome||'Meta').slice(0,40);m.guardado=Number.isInteger(m.guardado)&&m.guardado>=0?m.guardado:0;m.mensal=Number.isInteger(m.mensal)&&m.mensal>=0?m.mensal:0;m.feita=!!m.feita;m.tipo=TIPOS_PLANO.some(function(t){return t[0]===m.tipo})?m.tipo:'outro';if(m.prazo&&!/^\d{4}-\d{2}$/.test(m.prazo))m.prazo=null});
   var reg={};if(o.reg&&typeof o.reg==='object')for(var k in o.reg)if(re.test(k))reg[k]=1;
@@ -470,14 +500,15 @@ function sanitize(o){
   if(o.prem&&typeof o.prem==='object')for(var pk in PREM_PADRAO)if(typeof o.prem[pk]==='number'&&isFinite(o.prem[pk])&&o.prem[pk]>=0&&o.prem[pk]<=1000)prem[pk]=o.prem[pk];
   var log=Array.isArray(o.log)?o.log.filter(function(x){return x&&typeof x.ferramenta==='string'}).slice(-200):[];
   var ids={};metas.forEach(function(m){ids[m.id]=1});
-  var aportes=Array.isArray(o.aportes)?o.aportes.filter(function(a){return a&&typeof a.plano==='string'&&Number.isInteger(a.v)&&a.v>0&&typeof a.data==='string'&&re.test(a.data)}).map(function(a){return{id:String(a.id||uid()),plano:a.plano,v:a.v,data:a.data,ts:typeof a.ts==='number'?a.ts:undefined}}).slice(-500):[];
+  var aportes=Array.isArray(o.aportes)?o.aportes.filter(function(a){return a&&typeof a.plano==='string'&&Number.isInteger(a.v)&&a.v>0&&typeof a.data==='string'&&re.test(a.data)}).map(function(a){return{id:String(a.id||uid()),plano:a.plano,v:a.v,data:a.data,meioId:typeof a.meioId==='string'?a.meioId.slice(0,80):'',ts:typeof a.ts==='number'?a.ts:undefined}}).slice(-500):[];
   var saldo=Number.isInteger(o.saldo)&&Math.abs(o.saldo)<100000000000&&typeof o.saldoTs==='number'?o.saldo:null,saldoTs=saldo!=null?o.saldoTs:null;
-  var prog=Array.isArray(o.prog)?o.prog.filter(function(x){return x&&typeof x.id==='string'&&Number.isInteger(x.v)&&x.v>0&&typeof x.data==='string'&&re.test(x.data)}).map(function(x){return{id:x.id,nome:String(x.nome||'Gasto planejado').slice(0,40),v:x.v,data:x.data}}).slice(-100):[];
+  var prog=Array.isArray(o.prog)?o.prog.filter(function(x){return x&&typeof x.id==='string'&&Number.isInteger(x.v)&&x.v>0&&typeof x.data==='string'&&re.test(x.data)}).map(function(x){return{id:x.id,nome:String(x.nome||'Gasto planejado').slice(0,40),v:x.v,data:x.data,meioId:typeof x.meioId==='string'?x.meioId.slice(0,80):'',cat:CATS.some(function(c){return c[0]===x.cat})?x.cat:'outros'}}).slice(-100):[];
   var prio=Array.isArray(o.prio)?o.prio.filter(function(x){return x&&typeof x.id==='string'&&Number.isInteger(x.v)&&x.v>0&&typeof x.nome==='string'&&x.nome.trim()}).map(function(x){var pc=x.parc&&Number.isInteger(x.parc.n)&&x.parc.n>=2&&x.parc.n<=48&&Number.isInteger(x.parc.p)&&x.parc.p>0?{n:x.parc.n,p:x.parc.p}:null;var alts=Array.isArray(x.alts)?x.alts.filter(function(a){return a&&typeof a.id==='string'&&typeof a.nome==='string'&&a.nome.trim()&&Number.isInteger(a.v)&&a.v>0}).map(function(a){return{id:a.id,nome:a.nome.trim().slice(0,40),v:a.v,mensal:Number.isInteger(a.mensal)&&a.mensal>=0&&a.mensal<100000000?a.mensal:0,obs:String(a.obs||'').slice(0,80)}}).slice(0,8):[];return{id:x.id,nome:x.nome.trim().slice(0,40),v:x.v,urg:x.urg===3?3:x.urg===1?1:2,depois:typeof x.depois==='string'?x.depois:null,parc:pc,feito:!!x.feito,alts:alts,alt:typeof x.alt==='string'?x.alt:null}}).slice(0,40):[];
   var fr=o.fxRef&&typeof o.fxRef==='object'?o.fxRef:{};
   var fxRef={ocultos:Array.isArray(fr.ocultos)?fr.ocultos.filter(function(x){return typeof x==='string'&&x.length<=20}).slice(0,30):[],extras:Array.isArray(fr.extras)?fr.extras.filter(function(x){return x&&typeof x.k==='string'&&/^[\w-]{1,20}$/.test(x.k)&&typeof x.nome==='string'&&x.nome.trim()}).map(function(x){return{k:x.k,ic:String(x.ic||'⭐').slice(0,8),nome:x.nome.trim().slice(0,30),cat:typeof x.cat==='string'?x.cat:'casa'}}).slice(0,20):[]};
   var bk=typeof o.bk==='string'&&re.test(o.bk)?o.bk:null,bkAdiar=typeof o.bkAdiar==='string'&&re.test(o.bkAdiar)?o.bkAdiar:null;
-  return{v:1,recs:recs,metas:metas,aportes:aportes,reg:reg,onb:!!o.onb,prem:prem,log:log,bk:bk,bkAdiar:bkAdiar,saldo:saldo,saldoTs:saldoTs,prog:prog,fxRef:fxRef,prio:prio,investimentos:Array.isArray(o.investimentos)?o.investimentos.filter(function(x){return x&&typeof x.id==='string'&&typeof x.institution==='string'&&Number.isFinite(x.amount)&&x.amount>=0&&Number.isFinite(x.percent)&&x.percent>=0&&x.percent<=1000&&(x.kind==='cdb'||x.kind==='lci')}).map(function(x){return{id:x.id,institution:x.institution.slice(0,90),amount:x.amount,percent:x.percent,kind:x.kind,investedAt:String(x.investedAt||'').slice(0,10),maturity:String(x.maturity||'').slice(0,10),liquidity:String(x.liquidity||'').slice(0,90)}}).slice(0,200):[]};
+  metas.forEach(function(m){if(typeof m.meioId!=='string')delete m.meioId;if(!CATS.some(function(c){return c[0]===m.pagCat}))m.pagCat='outros'});
+  return{v:1,pgSchema:1,meios:pgSanMeios(o.meios),pgSomarBancos:!!o.pgSomarBancos,recs:recs,metas:metas,aportes:aportes,reg:reg,onb:!!o.onb,prem:prem,log:log,bk:bk,bkAdiar:bkAdiar,saldo:saldo,saldoTs:saldoTs,prog:prog,fxRef:fxRef,prio:prio,investimentos:Array.isArray(o.investimentos)?o.investimentos.filter(function(x){return x&&typeof x.id==='string'&&typeof x.institution==='string'&&Number.isFinite(x.amount)&&x.amount>=0&&Number.isFinite(x.percent)&&x.percent>=0&&x.percent<=1000&&(x.kind==='cdb'||x.kind==='lci')}).map(function(x){return{id:x.id,institution:x.institution.slice(0,90),amount:x.amount,percent:x.percent,kind:x.kind,investedAt:String(x.investedAt||'').slice(0,10),maturity:String(x.maturity||'').slice(0,10),liquidity:String(x.liquidity||'').slice(0,90)}}).slice(0,200):[]};
 }
 
 /* ===== Planos (leme), cenários (motor) e ações do assistente ===== */
@@ -671,7 +702,7 @@ function executar(db,today,nome,a,origem){
     case'registrar_lancamento':{
       if(!Number.isInteger(a.valor)||a.valor<=0)return no('Valor inválido.');
       var dt=/^\d{4}-\d{2}-\d{2}$/.test(a.data||'')?a.data:today,tp=a.tipo==='r'?'r':'d';
-      db.recs.push({id:uid(),t:tp,v:a.valor,cat:tp==='d'?(catLabel(a.categoria)==='Outros'&&a.categoria!=='outros'?'outros':(a.categoria||'outros')):'outros',desc:String(a.descricao||'').slice(0,60),data:dt,st:'real',fixa:false});
+      var pg=pgRegistrar(db,{t:tp,v:a.valor,cat:tp==='d'?(a.categoria||'outros'):'outros',desc:a.descricao,data:dt,meioId:a.meioId,n:1});if(pg.erro)return no(pg.erro);
       markReg(db,today);out=ok('Registrado: '+(tp==='r'?'entrada':'gasto')+' de '+fmt(a.valor)+'.'+(tp==='d'&&dt===today?limiteTxt():''));break}
     case'consultar_limite_hoje':{
       var b=budget(db,today);
@@ -718,10 +749,10 @@ function executar(db,today,nome,a,origem){
       if(!a.nome||!Number.isInteger(a.valor)||a.valor<=0)return no('Informe o que é e o valor.');
       var dq=/^\d{4}-\d{2}-\d{2}$/.test(a.data||'')?a.data:null;
       if(!dq){var q2=quandoPosso(cenario(db,today,6,typeof pjExtras==='function'?pjExtras():[]),a.valor);if(!q2.ok)return no('Não cabe nos próximos 6 meses: faltam '+fmt(q2.falta)+'. Diga uma data se quiser programar mesmo assim.');dq=q2.data}
-      if(!db.prog)db.prog=[];db.prog.push({id:uid(),nome:String(a.nome).slice(0,40),v:a.valor,data:dq});markReg(db,today);
+      var ge=pgValidar(db,a.meioId,'d',a.categoria||'outros',a.valor,1);if(ge)return no(ge);if(!db.prog)db.prog=[];db.prog.push({id:uid(),nome:String(a.nome).slice(0,40),v:a.valor,data:dq,meioId:a.meioId||'',cat:a.categoria||'outros'});markReg(db,today);
       out=ok('Programado: "'+a.nome+'" de '+fmt(a.valor)+' para '+dq.slice(8,10)+'/'+dq.slice(5,7)+'. O cenário já considera.');break}
     case'cadastrar_renda':{
-      var nr=novaRenda(db,today,{nome:a.nome,tipo:a.tipo||'mensal',v:a.valor,dia:a.dia,data:a.data,recebida:a.recebida===true,partes:(a.partes||[]).map(function(x){return{dia:x.dia,v:x.valor}})});
+      var nr=novaRenda(db,today,{nome:a.nome,tipo:a.tipo||'mensal',meioId:a.meioId,v:a.valor,dia:a.dia,data:a.data,recebida:a.recebida===true,partes:(a.partes||[]).map(function(x){return{dia:x.dia,v:x.valor}})});
       if(nr.erro)return no(nr.erro);
       markReg(db,today);out=ok('Renda "'+a.nome+'" cadastrada: '+fmt(nr.total)+(a.tipo==='unica'?'.':' por mês.'));break}
     case'cadastrar_conta_fixa':{
@@ -738,7 +769,7 @@ function executar(db,today,nome,a,origem){
     case'pagar_conta':{
       var rc=db.recs.filter(function(x){return x.id===a.id})[0]||null;
       if(!rc||!rc.fixa||rc.st!=='prev')return no('Não encontrei essa conta em aberto.');
-      rc.st='real';markReg(db,today);out=ok('Conta "'+rc.desc+'" marcada como paga.');break}
+      var me=a.meioId||rc.meioId,er=pgValidar(db,me,'d',rc.cat,rc.v,1);if(er)return no(er);rc.meioId=me;var m=pgMeio(db,me);if(m&&m.tipo==='cartao')rc.pgVenc=pgVencimento(m,today);rc.st='real';markReg(db,today);out=ok('Conta "'+rc.desc+'" marcada como paga.');break}
     default:return no('Ação desconhecida.');
   }
   if(out.ok&&isMuta(nome)||origem==='assistente'){
@@ -777,6 +808,7 @@ function mediaVariavel(db,today,n){
 }
 
 function projecao(db,today,n){
+  db=pgCaixa(db);
   var ym0=monthOf(today),tpl=db.recs.filter(function(r){return r.rec==='m'&&!r.from});
   var rendaRec=sum(tpl.filter(function(t){return t.t==='r'})),fixRec=sum(tpl.filter(function(t){return t.t==='d'&&t.fixa}));
   var media=mediaVariavel(db,today,3),out=[],temRenda=rendaRec>0;
@@ -878,7 +910,7 @@ function dicas(db,today){
 }
 
 function guardarNoPlano(db,m,v,today){
-  m.guardado+=v;db.aportes=db.aportes||[];db.aportes.push({id:uid(),plano:m.id,v:v,data:today,ts:Date.now()});
+  m.guardado+=v;db.aportes=db.aportes||[];db.aportes.push({id:uid(),plano:m.id,v:v,data:today,meioId:m.meioId||'',ts:Date.now()});
   var feito=!m.feita&&m.guardado>=m.alvo;if(feito)m.feita=true;markReg(db,today);return feito;
 }
 
@@ -904,6 +936,7 @@ function tipoDe(n){
 
 /* ===== Cenário: o que entra, o que sai e o que sobra em cada período (entre recebimentos) ===== */
 function cenario(db,today,meses,extras){
+  db=pgCaixa(db);
   meses=meses||3;var ym=monthOf(today),fimYm=addMonths(ym,meses-1),fim=fimYm+'-'+pad(daysInMonth(fimYm)),temSaldo=db.saldo!=null&&db.saldoTs!=null,ini=temSaldo?budgetCaixa(db,today).saldo:0,ev=[],i,m;
   var nomes=[];for(i=0;i<meses;i++)nomes.push(addMonths(ym,i));
   db.recs.forEach(function(r){
@@ -1060,7 +1093,7 @@ function nvEntrar(email,senha,criar){
 }
 function nvSair(){clearTimeout(nvT);nvBusy=false;N={};nvStore();if(typeof pjReset==='function')pjReset()}
 function nvDocLocal(){return JSON.parse(JSON.stringify(db))}
-function nvVazio(d){return !['recs','metas','aportes','prog','prio','investimentos','log'].some(function(k){return Array.isArray(d[k])&&d[k].length})&&!Object.keys(d.reg||{}).length&&d.saldo==null&&!d.onb&&!(d.fxRef&&(d.fxRef.extras||[]).length)&&!(d.fxRef&&(d.fxRef.ocultos||[]).length)}
+function nvVazio(d){return !['recs','metas','aportes','prog','prio','investimentos','meios','log'].some(function(k){return Array.isArray(d[k])&&d[k].length})&&!Object.keys(d.reg||{}).length&&d.saldo==null&&!d.onb&&!(d.fxRef&&(d.fxRef.extras||[]).length)&&!(d.fxRef&&(d.fxRef.ocultos||[]).length)}
 function nvAplicar(doc,rev){
   var v=sanitize(doc);if(!v)throw Error('Documento da nuvem inválido.');
   try{localStorage.setItem(KEY+'-antes-nuvem',JSON.stringify(db))}catch(e){throw Error('Não foi possível guardar a cópia de segurança local.')}
@@ -1075,7 +1108,7 @@ function nvAgendar(){if(!nvLogado()||nvMute)return;N.dirty=true;nvStore();clearT
 function nvSync(){
   if(!nvLogado()||nvBusy)return Promise.resolve();var session=N;nvBusy=true;nvEstado('sync');
   return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&select=doc,revision,device,updated_at').then(function(r){
-    if(!r.ok)throw r;var row=r.j&&r.j[0];
+    if(!r.ok)throw r;var row=r.j&&r.j[0];if(row&&(row.revision===N.rev||N.dirty)&&!nvVazio(db)&&Array.isArray(row.doc.meios)&&row.doc.meios.some(function(m){return!(db.meios||[]).some(function(local){return local.id===m.id})})){nvEstado('conflito');nvPerguntar(row);return}
     if(!row){ // nada na nuvem: sobe o que temos
       var sent=nvDocLocal();return nvApi('/rest/v1/app_state',{method:'POST',prefer:'return=representation',body:{user_id:N.uid,doc:sent,revision:1,device:nvDevice()}}).then(function(w){if(!w.ok)throw w;N.rev=1;N.dirty=JSON.stringify(sent)!==JSON.stringify(db);N.ok=Date.now();nvEstado('ok')});
     }
@@ -1368,7 +1401,7 @@ function uiTool(action,icon,label,extra){return '<button type="button" class="to
 
 function recRow(r,today,act){
   var icon=r.t==='r'?'arrow-up-circle':uiCategory(r.cat),late=r.st==='prev'&&r.data<today;
-  var sub=(r.t==='r'?'Entrada':catLabel(r.cat))+' · '+shortDate(r.data,today)+(r.st==='prev'?(r.t==='r'?' · prevista':' · a pagar'):'')+(r.rec==='m'?' · todo mês':'');
+  var sub=(r.t==='r'?'Entrada':catLabel(r.cat))+' · '+shortDate(r.data,today)+(r.st==='prev'?(r.t==='r'?' · prevista':' · a pagar'):'')+(r.rec==='m'?' · todo mês':'')+(r.meioId?' · '+pgNome(r.meioId):'')+(r.pgN>1?' · parcela '+r.pgI+'/'+r.pgN:'')+(r.pgVenc?' · fatura '+dm(r.pgVenc)+(r.pgPagoEm?' paga':' em aberto'):'');
   return'<button type="button" class="item tap" data-act="'+(act||'edit')+'" data-id="'+esc(r.id)+'"><span class="ic">'+uiIcon(icon)+'</span><span class="tx"><b>'+esc(r.desc||catLabel(r.cat))+'</b><span>'+esc(sub)+'</span></span><span class="vl '+(r.t==='r'?'in':late?'late':'')+'">'+(r.t==='r'?'+':'− ')+fmt(r.v)+'</span></button>';
 }
 
@@ -1376,7 +1409,7 @@ function render(){
   var today=todayStr();
   if(ensureRecurring(db,today))save();
   if(!mesSel)mesSel=monthOf(today);
-  var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
+  var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="pg-carteira">'+uiIcon('wallet2')+'<span>Carteira</span></button><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
   var title={extrato:'Extrato',painel:'Resumo do mês',contas:'Contas',metas:'Seus planos',investimentos:'Investimentos'};
   var body=view==='hoje'?vHoje(today):'<h1 class="page-heading">'+title[view]+'</h1>'+(view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):view==='investimentos'?'<iframe title="Investimentos Atlas" src="investimentos.html?integrado=1" style="width:100%;height:calc(100dvh - 165px);min-height:570px;border:0;border-radius:18px;background:#f4f7fb"></iframe>':vMetas(today));
   if(view==='hoje')body+='<section class="card" aria-label="Investimentos"><h3>🌱 Fazer crescer</h3><p class="muted">Simule aplicações, compare percentuais do CDI e acompanhe seus investimentos.</p><button type="button" class="btn pri" data-act="nav" data-v="investimentos" style="margin-top:8px">Explorar investimentos →</button></section>';
@@ -1402,7 +1435,7 @@ function vHoje(today){
   if(proxima)h+='<section class="home-note'+(proxima.data<today?' late':'')+'"><div class="note-head">'+uiIcon('calendar2-check')+'<div><b>'+(proxima.data<today?'Conta pendente: ':'Próxima conta: ')+esc(proxima.desc||catLabel(proxima.cat))+'</b><p>'+fmt0d(proxima.data)+' · '+fmt(proxima.v)+(proxima.data<today?' · Em atraso':'')+'</p></div><button type="button" class="text-action" data-act="pagar" data-id="'+esc(proxima.id)+'" aria-label="Ver conta '+esc(proxima.desc||catLabel(proxima.cat))+'">Ver '+uiIcon('chevron-right')+'</button></div></section>';
   var ms=db.metas.filter(function(m){return!m.feita}),m=ms[0];
   h+='<section class="home-plan"><div class="section-heading"><h2>Meus planos</h2><button type="button" class="text-action" data-act="nav" data-v="metas">Ver planos '+uiIcon('chevron-right')+'</button></div>'+(m?metaMini(m,today)+'<button type="button" class="text-action" data-act="det" data-id="'+esc(m.id)+'">Acompanhar meu plano '+uiIcon('chevron-right')+'</button>':'<p class="home-empty">Uma compra, uma viagem ou uma reserva: comece pelo que importa para você.</p><button type="button" class="text-action" data-act="novameta">Criar meu primeiro plano '+uiIcon('chevron-right')+'</button>')+'</section>';
-  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
+  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('pg-carteira','wallet2','Bancos, cartões e benefícios')+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
   if(!db.reg[today])h+='<button type="button" class="text-action" data-act="nada">Hoje eu não gastei nada</button>';
   h+='<details class="home-more"><summary>Ver próximos recebimentos e pagamentos</summary>'+vCenarioCard(today)+'</details>';
   if(bkPrecisa(db,today))h+='<section class="home-note"><b>Guarde uma cópia dos seus dados</b><p class="home-empty">Faça um backup para recuperar seus registros se trocar de aparelho.</p><button type="button" class="text-action" data-act="gear">Fazer backup</button><button type="button" class="text-action" data-act="bkdepois">Lembrar em 3 dias</button></section>';
@@ -1553,7 +1586,7 @@ function vMetas(today){
     var r=rota(m,today),warn=r.status==='atrasado'||r.status==='vencido'||r.status==='sem-aporte';
     h+='<div class="card"><h3 class="tap" data-act="det" data-id="'+esc(m.id)+'">'+tipoIcone(m.tipo)+' '+esc(m.nome)+(m.feita?' 🎉':'')+' <span class="muted">›</span></h3><div class="bar-bg"><div class="bar-fg" style="width:'+r.pct+'%"></div></div><div class="muted">'+fmt(m.guardado)+' de '+fmt(m.alvo)+' · '+r.pct+'%'+(m.prazo?' · prazo '+esc(m.prazo.slice(5,7)+'/'+m.prazo.slice(0,4)):'')+'</div>'+
       '<div class="alert '+(warn?'warn':'ok')+'">'+esc(rotaTxt(m,r))+'</div>'+
-      (m.feita?'':'<div class="muted" style="margin-top:6px">Reserva por mês (já descontada do seu limite diário): '+(m.mensal?fmt(m.mensal):'nenhuma')+'</div>')+
+      (m.feita?'':'<div class="muted" style="margin-top:6px">Reserva mensal (na fonte escolhida): '+(m.mensal?fmt(m.mensal):'nenhuma')+' · '+esc(pgNome(m.meioId))+'</div>')+
       '<div class="row">'+(m.feita?'':'<button class="btn sm pri" data-act="guardei" data-id="'+esc(m.id)+'">Guardei</button><button class="btn sm" data-act="cen" data-id="'+esc(m.id)+'">Comparar caminhos</button>')+'<button class="btn sm" data-act="det" data-id="'+esc(m.id)+'">Detalhes</button><button class="btn sm" data-act="editmeta" data-id="'+esc(m.id)+'">Editar</button></div></div>';
   });
   return h+vPrioridades(today)+vProjetos(today);
@@ -1677,6 +1710,27 @@ function dlCsv(){
   var b=new Blob(['﻿'+linhas.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='atlas-financas-'+todayStr()+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
 }
 
+/* Carteira e seleção de origem/destino nos fluxos existentes. */
+function pgNome(id){var m=pgMeio(db,id);return m?m.nome:'Saldo geral / sem conta'}
+function pgSelect(id,sel,modo){var lista=(db.meios||[]).filter(function(m){return(!m.arquivado||m.id===sel)&&(modo!=='receber'||m.tipo!=='cartao')&&(modo!=='banco'||m.tipo==='banco')});return'<select id="'+id+'"><option value="">'+(modo==='banco'?'Escolha o banco':'Saldo geral / sem conta específica')+'</option>'+lista.map(function(m){return'<option value="'+esc(m.id)+'"'+(m.id===sel?' selected':'')+'>'+esc(m.nome)+' · '+esc(PG_TIPOS[m.tipo])+'</option>'}).join('')+'</select>'}
+function pgCampo(id,sel,modo){return'<label for="'+id+'">'+(modo==='receber'?'Onde este valor entra?':'Como vai pagar / qual saldo usar?')+'</label>'+pgSelect(id,sel,modo)+'<p class="muted" style="margin:6px 0">VA: Mercado. VR: Comida fora. Crédito ocupa limite e gera fatura; benefício usa seu próprio saldo.</p>'}
+function pgCardTitle(m){return esc(m.nome)+' <small class="muted">'+esc(PG_TIPOS[m.tipo])+'</small>'}
+function pgCarteira(){var meios=db.meios||[],f=pgFaturas(db),bancos=meios.filter(function(m){return m.tipo==='banco'}),saldo=bancos.reduce(function(s,m){return s+pgSaldo(db,m.id)},0);
+  var h='<h2>Carteira <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted">Cadastre bancos, cartões e benefícios. Informe o saldo que já existe agora; cadastre apenas os próximos recebimentos para não somar o mesmo valor duas vezes.</p><div class="row"><button class="btn pri" data-act="pg-novo">+ Banco, cartão ou benefício</button></div><div class="card"><h3>Saldo bancário: '+fmt(saldo)+'</h3><p class="muted">VA, VR e limite de crédito têm saldos separados abaixo.</p><label style="display:flex;align-items:center;gap:8px"><input id="pg-somar" type="checkbox" style="width:auto" '+(db.pgSomarBancos?'checked':'')+'> Usar a soma dos bancos no saldo geral</label><p class="muted">Ative depois de cadastrar e conferir todas as contas. Ao registrar novas entradas e saídas, escolha a conta. Seu saldo geral anterior fica preservado se desativar.</p><button class="btn sm" data-act="pg-somar">Aplicar escolha</button></div><div class="row"><button class="btn" data-act="rendas">Salário por quinzena, outras rendas e recargas</button><button class="btn" data-act="pg-planejar">Planejar uso de um saldo</button></div>';
+  if(!meios.length)h+='<p class="muted">Nenhum meio cadastrado. Comece pelo banco ou benefício que você utiliza.</p>';
+  meios.forEach(function(m){var saldo=pgSaldo(db,m.id),res=pgReservado(db,m.id);h+='<div class="card"><h3>'+pgCardTitle(m)+(m.arquivado?' · arquivado':'')+'</h3><div class="leg"><span>'+(m.tipo==='cartao'?'Limite disponível':'Saldo atual')+'</span><b>'+fmt(saldo)+'</b></div><div class="leg"><span>Comprometido com gastos programados e reserva mensal</span><b>'+fmt(res)+'</b></div><p class="muted">Após esse planejamento: '+fmt(saldo-res)+(m.tipo==='cartao'?'. A fatura precisa ser paga com dinheiro; limite não é renda.':'.')+'</p>'+(m.tipo==='cartao'?'<p class="muted">Limite total '+fmt(m.limite)+' · fecha dia '+m.fechamento+' · vence dia '+m.vencimento+'. Compra no dia do fechamento vai para o próximo ciclo; confira o extrato do emissor.</p>':'')+'<div class="row"><button class="btn sm" data-act="pg-editar" data-id="'+esc(m.id)+'">Editar / conferir saldo</button><button class="btn sm" data-act="pg-arquivar" data-id="'+esc(m.id)+'">'+(m.arquivado?'Reativar':'Arquivar')+'</button></div></div>'});
+  if(f.length)h+='<h3>Faturas dos cartões</h3><p class="muted">Somente compras cadastradas com um cartão aparecem aqui. Se já cadastrou manualmente uma conta fixa de fatura, confira para não duplicar a previsão.</p>'+f.map(function(x){return'<div class="card"><b>'+esc(x.nome)+' · '+dm(x.data)+'</b><p>Total '+fmt(x.total)+' · falta pagar '+fmt(x.aberto)+'</p>'+(x.aberto?'<button class="btn pri" data-act="pg-fatura" data-id="'+esc(x.id)+'" data-data="'+x.data+'">Pagar fatura</button>':'<button class="btn" data-act="pg-reabrir" data-id="'+esc(x.id)+'" data-data="'+x.data+'">Reabrir fatura</button>')+'</div>'}).join('');
+  var prog=(db.prog||[]).filter(function(p){return p.meioId});if(prog.length)h+='<h3>Usos planejados</h3>'+prog.map(function(p){return'<div class="card"><b>'+esc(p.nome)+'</b><p>'+fmt(p.v)+' · '+dm(p.data)+' · '+esc(pgNome(p.meioId))+'</p><div class="row"><button class="btn sm pri" data-act="progpago" data-id="'+esc(p.id)+'">Registrar gasto</button><button class="btn sm" data-act="progdel" data-id="'+esc(p.id)+'">Remover planejamento</button></div></div>'}).join('');
+  openSheet(h);
+}
+function pgForm(id){var m=pgMeio(db,id);qf={pgId:id||null};openSheet('<h2>'+(m?'Editar cadastro':'Novo meio da carteira')+' <button class="icon-btn" data-act="pg-voltar" aria-label="Voltar">‹</button></h2><label for="pg-tipo">Tipo</label><select id="pg-tipo" '+(m?'disabled':'')+'>'+Object.keys(PG_TIPOS).map(function(k){return'<option value="'+k+'"'+(m&&m.tipo===k?' selected':'')+'>'+PG_TIPOS[k]+'</option>'}).join('')+'</select><label for="pg-nome">Nome para identificar</label><input id="pg-nome" maxlength="60" value="'+esc(m?m.nome:'')+'" placeholder="Ex.: Meu banco, cartão principal, VA"><label for="pg-inst">Banco ou emissor (opcional)</label><input id="pg-inst" maxlength="60" value="'+esc(m?m.instituicao:'')+'"><div id="pg-saldocampo"><label for="pg-saldo">Saldo atual (confira no banco ou benefício)</label><input id="pg-saldo" class="money" inputmode="numeric" value="'+fmt(m?pgSaldo(db,m.id):0)+'"><p class="muted">Este é um saldo de partida, não uma renda nova. Atualizar o saldo incorpora os registros já recebidos/pagos; os próximos registros ajustam esse valor.</p></div><div id="pg-creditocampo"><label for="pg-limite">Limite total do cartão</label><input id="pg-limite" class="money" inputmode="numeric" value="'+fmt(m?m.limite:0)+'"><label for="pg-fecha">Dia do fechamento</label><input id="pg-fecha" type="number" min="1" max="31" value="'+(m?m.fechamento:1)+'"><label for="pg-vence">Dia do vencimento</label><input id="pg-vence" type="number" min="1" max="31" value="'+(m?m.vencimento:10)+'"><label for="pg-banco">Banco usado para pagar a fatura</label>'+pgSelect('pg-banco',m?m.contaId:'','banco')+'<p class="muted">Se já há compras antigas nesse cartão, registre-as para reproduzir o limite disponível. Datas novas valem para compras futuras; cada compra mantém seu vencimento.</p></div><div class="row"><button class="btn pri" data-act="pg-salvar">Salvar cadastro</button></div>');pgTipoForm()}
+function pgTipoForm(){var credito=$('#pg-tipo').value==='cartao';$('#pg-saldocampo').hidden=credito;$('#pg-creditocampo').hidden=!credito}
+function pgSalvar(){var id=qf.pgId,m=pgMeio(db,id),tipo=m?m.tipo:$('#pg-tipo').value,nome=$('#pg-nome').value.trim(),sv=$('#pg-saldo').value,saldo=toCents(sv)*(String(sv).trim().startsWith('-')?-1:1),limite=toCents($('#pg-limite').value),fe=+$('#pg-fecha').value,ve=+$('#pg-vence').value,conta=$('#pg-banco').value;if(!nome)return toast('Dê um nome para identificar.');if(pgBeneficio({tipo:tipo})&&saldo<0)return toast('O saldo de benefício não pode ser negativo.');if(tipo==='cartao'&&(!limite||!Number.isInteger(fe)||fe<1||fe>31||!Number.isInteger(ve)||ve<1||ve>31))return toast('Informe limite, fechamento e vencimento (dias de 1 a 31).');if(tipo==='cartao'&&conta&&(!pgMeio(db,conta)||pgMeio(db,conta).tipo!=='banco'))return toast('Escolha um banco para pagar a fatura.');if(!db.meios)db.meios=[];if(!m&&db.meios.length>=100)return toast('Máximo de 100 cadastros.');var before=JSON.stringify(db);normalizarPts(db,Date.now());var next={id:id||uid(),tipo:tipo,nome:nome.slice(0,60),instituicao:$('#pg-inst').value.trim().slice(0,60),saldo:tipo==='cartao'?0:saldo,saldoTs:Date.now(),limite:limite,fechamento:fe,vencimento:ve,contaId:conta,arquivado:m?m.arquivado:false};if(m)Object.assign(m,next);else db.meios.push(next);if(!save()){db=JSON.parse(before);return}render();pgCarteira();toast('Cadastro salvo.')}
+function pgPlanejar(){openSheet('<h2>Planejar uso de um saldo <button class="icon-btn" data-act="pg-voltar" aria-label="Voltar">‹</button></h2><label for="pg-pnome">O que pretende pagar?</label><input id="pg-pnome" maxlength="40" placeholder="Ex.: Mercado da próxima semana"><label for="pg-pvalor">Valor</label><input class="money" id="pg-pvalor" inputmode="numeric" placeholder="R$ 0,00"><label for="pg-pdata">Data prevista</label><input type="date" id="pg-pdata" value="'+todayStr()+'"><label for="pg-pcat">Categoria</label><select id="pg-pcat">'+CATS.map(function(c){return'<option value="'+c[0]+'">'+esc(c[1])+'</option>'}).join('')+'</select>'+pgCampo('pg-pmeio','','gastar')+'<p class="muted">Planejar compromete disponibilidade, mas só o registro do gasto altera o saldo real. No crédito, o cenário considera o vencimento da fatura.</p><div class="row"><button class="btn pri" data-act="pg-programar">Salvar planejamento</button></div>')}
+function pgProgramar(){var nome=$('#pg-pnome').value.trim(),v=toCents($('#pg-pvalor').value),data=$('#pg-pdata').value,id=$('#pg-pmeio').value,cat=$('#pg-pcat').value;if(!nome||!v||!pgData(data))return toast('Preencha nome, valor e data válida.');var e=pgValidar(db,id,'d',cat,v,1);if(e)return toast(e);if(!db.prog)db.prog=[];if(db.prog.length>=100)return toast('Máximo de 100 gastos programados.');var old=db.prog.slice();db.prog.push({id:uid(),nome:nome.slice(0,40),v:v,data:data,meioId:id,cat:cat});if(!save()){db.prog=old;return}render();pgCarteira();toast('Uso planejado. O saldo real só muda quando você registrar o gasto.')}
+function pgFaturaForm(id,data){var m=pgMeio(db,id),f=pgFaturas(db).find(function(x){return x.id===id&&x.data===data});if(!m||!f)return;qf={pgId:id,pgData:data};openSheet('<h2>Pagar fatura <button class="icon-btn" data-act="pg-voltar" aria-label="Voltar">‹</button></h2><p>'+esc(m.nome)+' · vencimento '+dm(data)+' · '+fmt(f.aberto)+'</p><label for="pg-fbanco">De qual banco saiu o pagamento?</label>'+pgSelect('pg-fbanco',m.contaId,'banco')+'<p class="muted">Confirma o valor integral em aberto. As compras já são gastos no extrato; o pagamento só liquida a fatura e ajusta o banco, sem criar uma segunda despesa.</p><button class="btn pri" data-act="pg-pagar">Confirmar pagamento integral</button>')}
+function pgPagar(){var before=JSON.stringify(db),e=pgPagarFatura(db,qf.pgId,qf.pgData,$('#pg-fbanco').value,todayStr());if(e)return toast(e);if(!save()){db=JSON.parse(before);return}render();pgCarteira();toast('Fatura paga. Limite liberado e saldo do banco ajustado.')}
+
 /* ---------- folhas (sheets) ---------- */
 function catChips(sel){return topCats(db).map(function(k){return'<button type="button" class="chip '+(k===sel?'on':'')+'" data-act="cat" data-k="'+k+'">'+catIcon(k)+' '+esc(catLabel(k))+'</button>'}).join('')}
 function sAdd(){
@@ -1689,14 +1743,17 @@ function sAdd(){
     '<div id="qcats"><label>Categoria</label><div class="chips">'+catChips(qf.cat)+'</div></div>'+
     '<label>Descrição (opcional)</label><input id="qd" maxlength="60" placeholder="Ex.: mercado do mês">'+
     '<label>Quando</label><div class="chips"><button type="button" class="chip on" id="dH" data-act="dia" data-d="0">Hoje</button><button type="button" class="chip" id="dO" data-act="dia" data-d="-1">Ontem</button><input type="date" id="qdt" value="'+today+'" style="width:auto"></div>'+
-    '<div class="row fix"><button class="btn pri" data-act="saveadd">Salvar</button></div>');
+    pgCampo('qmeio','','gastar')+'<div id="qparcelas" hidden><label for="qnp">Parcelas no cartão (valor acima é o total)</label><input id="qnp" type="number" min="1" max="48" value="1"></div><div class="row fix"><button class="btn pri" data-act="saveadd">Salvar</button></div>');
 }
 function syncQF(){
+  pgSyncRegistro();
   $('#tD').classList.toggle('on',qf.t==='d');$('#tR').classList.toggle('on',qf.t==='r');
   $('#qcats').style.display=qf.t==='d'?'':'none';
   document.querySelectorAll('#qcats .chip').forEach(function(c){c.classList.toggle('on',c.getAttribute('data-k')===qf.cat)});
   var t=todayStr();$('#dH').classList.toggle('on',qf.data===t);$('#dO').classList.toggle('on',qf.data===addDays(t,-1));$('#qdt').value=qf.data;
 }
+function pgSyncRegistro(){var el=$('#qmeio');if(!el)return;var m=pgMeio(db,el.value);$('#qparcelas').hidden=qf.t!=='d'||!m||m.tipo!=='cartao';Array.from(el.options).forEach(function(o){var m=pgMeio(db,o.value);o.disabled=qf.t==='r'&&m&&m.tipo==='cartao'})}
+document.addEventListener('change',function(e){if(e.target.id==='pg-tipo')pgTipoForm();if(e.target.id==='qmeio')pgSyncRegistro()});
 function onQuick(txt){
   var p=parseQuick(txt,todayStr());if(!p)return;
   qf.t=p.t;qf.cat=p.cat;qf.data=p.data;
@@ -1704,13 +1761,10 @@ function onQuick(txt){
   syncQF();
 }
 function saveAdd(){
-  var v=toCents($('#qv').value);if(!v){toast('Digite o valor.');$('#qv').focus();return}
-  var today=todayStr(),data=$('#qdt').value||qf.data;if(!/^\d{4}-\d{2}-\d{2}$/.test(data))data=today;
-  var r={id:uid(),t:qf.t,v:v,cat:qf.t==='d'?qf.cat:'outros',desc:$('#qd').value.trim().slice(0,60),data:data,st:'real',fixa:false};
-  db.recs.push(r);markReg(db,today);save();closeSheet();render();
-  var b=budget(db,today),msg='Registrado.';
-  if(r.t==='d'&&r.data===today&&!b.semRenda)msg=b.sobraHoje>=0?'Registrado. Ainda pode gastar '+fmt(b.sobraHoje)+' hoje.':'Registrado. Passou '+fmt(-b.sobraHoje)+' do limite de hoje.';
-  toast(msg,'Desfazer',function(){db.recs=db.recs.filter(function(x){return x.id!==r.id});save();render()});
+  var v=toCents($('#qv').value);if(!v)return toast('Digite o valor.');
+  var before=JSON.stringify(db),r=pgRegistrar(db,{t:qf.t,v:v,cat:qf.t==='d'?qf.cat:'outros',desc:$('#qd').value.trim(),data:$('#qdt').value||qf.data,meioId:$('#qmeio').value,n:$('#qparcelas').hidden?1:+$('#qnp').value});
+  if(r.erro)return toast(r.erro);markReg(db,todayStr());if(!save()){db=JSON.parse(before);return}closeSheet();render();
+  var ids=r.recs.map(function(x){return x.id});toast('Registrado no meio escolhido.','Desfazer',function(){db.recs=db.recs.filter(function(x){return ids.indexOf(x.id)<0});save();render()});
 }
 
 /* ---------- Cenário e planejamento ---------- */
@@ -1797,11 +1851,12 @@ function sSetup(){
 }
 function sEdit(id){
   var r=db.recs.filter(function(x){return x.id===id})[0];if(!r)return;
+  if(r.pgPagoEm){toast('Reabra a fatura na Carteira antes de editar uma compra quitada.');return}
   qf={t:r.t,cat:r.cat,data:r.data,id:id};
   openSheet('<h2>Editar <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+
     '<label>Valor</label><input class="money" id="ev" inputmode="numeric" value="'+fmt(r.v)+'">'+
     (r.t==='d'&&!r.est?'<div id="qcats"><label>Categoria</label><div class="chips">'+catChips(r.cat)+'</div></div>':'')+
-    '<label>Descrição</label><input id="ed" maxlength="60" value="'+esc(r.desc)+'">'+
+    pgCampo('emeio',r.meioId,r.t==='r'?'receber':'gastar')+'<label>Descrição</label><input id="ed" maxlength="60" value="'+esc(r.desc)+'">'+
     '<label>Data</label><input type="date" id="edt" value="'+esc(r.data)+'">'+
     ((r.fixa&&!r.est)||r.t==='r'?'<label>Situação</label><div class="seg"><button type="button" class="chip '+(r.st==='prev'?'on':'')+'" data-act="est" data-s="prev">'+(r.t==='r'?'Prevista':'A pagar')+'</button><button type="button" class="chip '+(r.st==='real'?'on':'')+'" data-act="est" data-s="real">'+(r.t==='r'?'Recebida':'Paga')+'</button></div>':'')+
     (r.fixa&&!r.est&&r.st==='prev'?'<div class="row"><button class="btn pri" data-act="pagarx" data-id="'+esc(id)+'">✅ Pagar esta conta</button></div>':'')+
@@ -1811,10 +1866,11 @@ function sEdit(id){
 function saveEdit(){
   var r=db.recs.filter(function(x){return x.id===qf.id})[0];if(!r)return closeSheet();
   var v=toCents($('#ev').value);if(!v){toast('Digite o valor.');return}
+  var idMeio=$('#emeio').value,err=pgValidar(db,idMeio,r.t,qf.cat,v,1,r);if(err)return toast(err);if(r.pgN>1&&r.meioId!==idMeio)return toast('Para mudar o cartão de uma compra parcelada, exclua e registre a compra novamente.');var before=JSON.stringify(db);if(r.meioId!==idMeio)delete r.pts;r.meioId=idMeio;
   r.v=v;r.desc=$('#ed').value.trim().slice(0,60);var d=$('#edt').value;if(/^\d{4}-\d{2}-\d{2}$/.test(d))r.data=d;
   if(r.t==='d'&&!r.est){r.cat=qf.cat;if(r.fixa){var tid=r.from||r.id;db.recs.forEach(function(x){if(x.id===tid||(x.from===tid&&x.st==='prev'))x.cat=qf.cat})}}
   if((r.fixa&&!r.est)||r.t==='r')r.st=qf.st;
-  save();closeSheet();render();toast('Alteração salva.');
+  var m=pgMeio(db,r.meioId);if(m&&m.tipo==='cartao'&&r.t==='d')r.pgVenc=pgVencimento(m,r.data,(r.pgI||1)-1);else{delete r.pgVenc;delete r.pgN;delete r.pgI}if(!save()){db=JSON.parse(before);return}closeSheet();render();toast('Alteração salva.');
 }
 function sConta(){
   var today=todayStr();
@@ -1878,21 +1934,21 @@ function fxSave(){
   save();render();sFixas();toast(nome+' cadastrada: vence todo dia '+d+'.');
 }
 /* ---------- minhas rendas (várias fontes) ---------- */
-var RENDAS=[['sal','💼','Salário','mensal'],['div','🔀','Salário dividido','dividida'],['alu','🏠','Aluguel que recebo','mensal'],['sw','💻','Venda de software','unica'],['rec','🔁','Assinatura ou mensalidade','mensal'],['venda','🛒','Venda de um bem','unica'],['outra','➕','Outra renda','mensal']];
+var RENDAS=[['benef','🍽️','Recarga de VA / VR','mensal'],['sal','💼','Salário','mensal'],['div','🔀','Salário dividido','dividida'],['alu','🏠','Aluguel que recebo','mensal'],['sw','💻','Venda de software','unica'],['rec','🔁','Assinatura ou mensalidade','mensal'],['venda','🛒','Venda de um bem','unica'],['outra','➕','Outra renda','mensal']];
 function rendaRot(r){return(r.regra?'cai no '+r.regra.n+'º dia útil':'cai todo dia '+(r.dia||+r.data.slice(8,10)))}
 function sRendas(){
   qf={rd:true};var today=todayStr(),l=rendasCad(db),u=rendasUnicas(db,today);
   function linha(r,rot,act){return'<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="leg" style="border:0;padding:0"><span>'+esc(r.desc)+'<br><small class="muted">'+rot+'</small></span><b>'+fmt(r.v)+'</b></div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn sm" data-act="edit" data-id="'+esc(r.id)+'" aria-label="Editar '+esc(r.desc)+'">Editar</button><button type="button" class="btn sm danger" data-act="rdel" data-id="'+esc(r.id)+'" aria-label="Excluir '+esc(r.desc)+'">Excluir</button></div></div>'}
   var lista=(l.length?'<div class="card" style="margin:14px 0 0"><h3>Todo mês · '+fmt(sum(l))+'</h3>'+l.map(function(r){return linha(r,rendaRot(r))}).join('')+'</div>':'')+(u.length?'<div class="card" style="margin:14px 0 0"><h3>Avulsas (últimos 30 dias e próximas)</h3>'+u.map(function(r){return linha(r,fmt0d(r.data)+(r.st==='prev'?' · a receber':' · recebida'))}).join('')+'</div>':'');
-  openSheet('<h2>Suas rendas <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Cadastre cada fonte separada: salário (inteiro ou dividido em datas), aluguel, vendas, assinaturas. O limite por dia usa tudo que entra.</p><div class="chips" style="margin-top:10px">'+RENDAS.map(function(f){return'<button type="button" class="chip" data-act="ritem" data-k="'+f[0]+'">'+f[1]+' '+esc(f[2])+'</button>'}).join('')+'</div>'+lista+'<div class="row"><button class="btn" data-act="close">Fechar</button></div>');
+  openSheet('<h2>Suas rendas <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Cadastre cada fonte separada: salário (inteiro ou dividido em datas), aluguel, vendas, assinaturas. O caixa usa as rendas bancárias; as recargas de VA/VR entram somente no benefício escolhido.</p><div class="chips" style="margin-top:10px">'+RENDAS.map(function(f){return'<button type="button" class="chip" data-act="ritem" data-k="'+f[0]+'">'+f[1]+' '+esc(f[2])+'</button>'}).join('')+'</div>'+lista+'<div class="row"><button class="btn" data-act="close">Fechar</button></div>');
 }
-function rParteHtml(i,d){return'<div class="leg rpt" style="gap:8px"><span style="flex:1"><small class="muted">Parte '+(i+1)+' · dia</small><input class="rpd" type="number" min="1" max="31" inputmode="numeric" value="'+d+'"></span><span style="flex:1.4"><small class="muted">Valor</small><input class="money rpv" inputmode="numeric" placeholder="R$ 0,00"></span></div>'}
+function rParteHtml(i,d){return'<div class="leg rpt" style="gap:8px"><span style="flex:1"><small class="muted">Parte '+(i+1)+' · dia</small><input class="rpd" type="number" min="1" max="31" inputmode="numeric" value="'+d+'"></span><span style="flex:1.4"><small class="muted">Valor</small><input class="money rpv" inputmode="numeric" placeholder="R$ 0,00"></span><span style="flex:1.4"><small class="muted">Conta desta parte (ou conta acima)</small>'+pgSelect('rp-meio-'+i,'','receber').replace('<select','<select class="rpb"')+'</span></div>'}
 function sRendaItem(k){
   var f=RENDAS.filter(function(x){return x[0]===k})[0];if(!f)return;
   qf={rd:true,k:k,tp:f[3],rec:true};
   openSheet('<h2>'+f[1]+' '+esc(f[2])+' <button class="icon-btn" data-act="rback" aria-label="Voltar">‹</button></h2>'+
     '<label>Nome</label><input id="rnm" maxlength="50" value="'+(k==='outra'?'':esc(f[2]))+'" placeholder="Ex.: Aluguel da sala"'+(k==='outra'?' autofocus':'')+'>'+
-    '<label>Como cai?</label><div class="seg"><button type="button" class="chip" data-act="rtp" data-t="mensal" id="rtM">Todo mês</button><button type="button" class="chip" data-act="rtp" data-t="dividida" id="rtD">Dividida em partes</button><button type="button" class="chip" data-act="rtp" data-t="unica" id="rtU">Só uma vez</button></div>'+
+    pgCampo('rmeio','','receber')+'<label>Como cai?</label><div class="seg"><button type="button" class="chip" data-act="rtp" data-t="mensal" id="rtM">Todo mês</button><button type="button" class="chip" data-act="rtp" data-t="dividida" id="rtD">Dividida em partes</button><button type="button" class="chip" data-act="rtp" data-t="unica" id="rtU">Só uma vez</button></div>'+
     '<div id="rbM"><label>Valor</label><input class="money" id="rvm" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00"><label>Que dia do mês cai?</label><div class="chips">'+[1,5,10,15,20,25,30].map(function(d){return'<button type="button" class="chip" data-act="rdia" data-d="'+d+'">'+d+'</button>'}).join('')+'</div><input id="rdm" type="number" min="1" max="31" inputmode="numeric" placeholder="ou digite o dia" style="margin-top:8px"><label style="display:flex;gap:8px;align-items:center;font-size:15px;color:var(--ink)"><input type="checkbox" id="rum" style="width:auto"> É no Nº dia útil (usa o número acima)</label></div>'+
     '<div id="rbD" hidden><p class="muted" style="margin:8px 0 0">Ex.: adiantamento dia 20 e o restante no 5º dia do mês seguinte. Informe cada parte.</p><div id="rpts">'+rParteHtml(0,20)+rParteHtml(1,5)+'</div><div class="row"><button type="button" class="btn sm" data-act="rpmais">＋ Outra parte</button><span class="muted" id="rptot" style="align-self:center"></span></div></div>'+
     '<div id="rbU" hidden><label>Valor</label><input class="money" id="rvu" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00"><label>Data</label><input type="date" id="rdu" value="'+todayStr()+'"><div class="seg" style="margin-top:8px"><button type="button" class="chip on" id="rgR" data-act="rrec" data-v="1">Já recebi</button><button type="button" class="chip" id="rgA" data-act="rrec" data-v="0">A receber</button></div></div>'+
@@ -1904,10 +1960,11 @@ function rTipo(t){
 }
 function rSoma(){var t=0;document.querySelectorAll('#rpts .rpv').forEach(function(i){t+=toCents(i.value)});var e=$('#rptot');if(e)e.textContent=t?'Total: '+fmt(t):''}
 function rSave(){
-  var o={nome:$('#rnm').value,tipo:qf.tp},hoje=todayStr(),tp=qf.tp;
+  var o={nome:$('#rnm').value,tipo:qf.tp,meioId:$('#rmeio').value},hoje=todayStr(),tp=qf.tp;
   if(qf.tp==='mensal'){o.v=toCents($('#rvm').value);var d=parseInt($('#rdm').value,10);if($('#rum').checked)o.util=d;else o.dia=d;o.recebida=false}
   else if(qf.tp==='unica'){o.v=toCents($('#rvu').value);o.data=$('#rdu').value;o.recebida=qf.rec!==false}
-  else{o.partes=[].map.call(document.querySelectorAll('#rpts .rpt'),function(el){return{dia:parseInt(el.querySelector('.rpd').value,10),v:toCents(el.querySelector('.rpv').value)}})}
+  else{o.partes=[].map.call(document.querySelectorAll('#rpts .rpt'),function(el){return{dia:parseInt(el.querySelector('.rpd').value,10),v:toCents(el.querySelector('.rpv').value),meioId:el.querySelector('.rpb').value||o.meioId}})}
+  if(qf.k==='benef'&&!pgBeneficio(pgMeio(db,o.meioId)))return toast('Escolha o vale-alimentação ou vale-refeição que recebe esta recarga.');
   var r=novaRenda(db,hoje,o);if(r.erro){toast(r.erro);return}
   if(tp==='unica'&&o.recebida)markReg(db,hoje);
   save();render();sRendas();toast(o.nome.trim()+' cadastrada: '+fmt(r.total)+(tp==='unica'?'.':' por mês.'));
@@ -1915,7 +1972,7 @@ function rSave(){
 function sPagar(id){
   var r=db.recs.filter(function(x){return x.id===id})[0];if(!r)return;qf={id:id};
   var tid=r.from||r.id,rec=r.rec==='m'&&db.recs.some(function(x){return x.id===tid});
-  openSheet('<h2>Pagar: '+esc(r.desc)+' <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Vencimento dia '+r.data.slice(8,10)+'/'+r.data.slice(5,7)+'. Conferiu o valor? Se veio diferente, corrija: o limite diário se ajusta.</p><label>Valor pago</label><input class="money" id="pgv" style="font-size:22px" inputmode="numeric" value="'+fmt(r.v)+'"><div class="row"><button class="btn pri" data-act="confpag">Confirmar pagamento</button></div>'+
+  openSheet('<h2>Pagar: '+esc(r.desc)+' <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Vencimento dia '+r.data.slice(8,10)+'/'+r.data.slice(5,7)+'. Conferiu o valor? Se veio diferente, corrija: o limite diário se ajusta.</p><label>Valor pago</label><input class="money" id="pgv" style="font-size:22px" inputmode="numeric" value="'+fmt(r.v)+'">'+pgCampo('pagarmeio',r.meioId,'gastar')+'<div class="row"><button class="btn pri" data-act="confpag">Confirmar pagamento</button></div>'+
     '<div class="row"><button class="btn sm" data-act="edit" data-id="'+esc(id)+'">✏️ Editar (nome, dia, onde se encaixa)</button>'+(rec?'<button class="btn sm danger" data-act="fxdel" data-id="'+esc(tid)+'">Excluir esta e as próximas</button>':'<button class="btn sm danger" data-act="edit" data-id="'+esc(id)+'">Excluir</button>')+'</div>');
 }
 function sMeta(id){
@@ -1926,7 +1983,7 @@ function sMeta(id){
     '<label>Quanto precisa juntar?</label><input class="money" id="ma" inputmode="numeric" placeholder="R$ 0,00" value="'+(m?fmt(m.alvo):'')+'">'+
     '<label>Até quando? (opcional)</label><input type="month" id="mp" value="'+esc(m&&m.prazo?m.prazo:'')+'">'+
     '<label>Quanto vai guardar por mês neste plano? (deixe vazio para não reservar)</label><input class="money" id="mm" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00" value="'+(m&&m.mensal?fmt(m.mensal):'')+'">'+
-    '<div id="msug" class="muted" style="margin-top:6px"></div>'+
+    pgCampo('mmeio',m?m.meioId:'','gastar')+'<label for="mpagcat">Categoria do uso planejado</label><select id="mpagcat">'+CATS.map(function(c){return'<option value="'+c[0]+'"'+(m&&m.pagCat===c[0]?' selected':'')+'>'+esc(c[1])+'</option>'}).join('')+'</select><p class="muted">VA/VR reservam o próprio benefício. No crédito, a reserva mensal é dinheiro para pagar a fatura; limite não é poupança.</p><div id="msug" class="muted" style="margin-top:6px"></div>'+
     '<div class="row"><button class="btn pri" data-act="savemeta">Salvar plano</button>'+(m?'<button class="btn danger" data-act="delmeta">Excluir</button>':'')+'</div>');
   mSug();
 }
@@ -1939,9 +1996,9 @@ function mSug(){
 function saveMeta(){
   var n=$('#mn').value.trim(),a=toCents($('#ma').value);
   if(!n){toast('Dê um nome para o plano.');return}if(!a){toast('Digite quanto precisa juntar.');return}
-  var p=$('#mp').value||null,mm=toCents($('#mm').value);
-  if(qf.id){var m=db.metas.filter(function(x){return x.id===qf.id})[0];m.nome=n.slice(0,40);m.tipo=qf.tipo||tipoDe(n);m.alvo=a;m.prazo=p;m.mensal=mm;m.feita=m.guardado>=m.alvo}
-  else db.metas.push({id:uid(),nome:n.slice(0,40),alvo:a,guardado:0,prazo:p,mensal:mm,feita:false,tipo:qf.tipo||tipoDe(n)});
+  var p=$('#mp').value||null,mm=toCents($('#mm').value),meio=$('#mmeio').value,cat=$('#mpagcat').value,err=pgValidar(db,meio,'d',cat,0,1);if(err)return toast(err);
+  if(qf.id){var m=db.metas.filter(function(x){return x.id===qf.id})[0];m.nome=n.slice(0,40);m.tipo=qf.tipo||tipoDe(n);m.alvo=a;m.prazo=p;m.mensal=mm;m.meioId=meio;m.pagCat=cat;m.feita=m.guardado>=m.alvo}
+  else db.metas.push({id:uid(),nome:n.slice(0,40),alvo:a,guardado:0,prazo:p,mensal:mm,meioId:meio,pagCat:cat,feita:false,tipo:qf.tipo||tipoDe(n)});
   save();closeSheet();render();toast('Plano salvo.');
 }
 function sGuardei(id){
@@ -1952,7 +2009,7 @@ function sGear(){
   openSheet('<h2>Ajustes <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+
     '<p class="muted" style="margin:0">Seus dados ficam só neste aparelho e neste navegador. Faça backup de vez em quando.</p>'+
     '<div class="row"><button class="btn" data-act="nuvem">☁ '+(nvLogado()?'Conta e nuvem':'Entrar para guardar na nuvem')+'</button></div><div class="row"><button class="btn" data-act="saldo">Atualizar meu saldo</button></div>'+
-    '<div class="row"><button class="btn" data-act="setup">Ajustar renda e contas fixas</button></div>'+
+    '<div class="row"><button class="btn" data-act="pg-carteira">Bancos, cartões e benefícios</button><button class="btn" data-act="rendas">Salário e outras rendas</button></div><div class="row"><button class="btn" data-act="setup">Ajustar renda e contas fixas</button></div>'+
     '<div class="row"><button class="btn" data-act="copybk">Copiar backup</button><button class="btn" data-act="dlbk">Baixar arquivo</button></div>'+
     '<div class="row"><button class="btn" data-act="csv">Exportar lançamentos (planilha CSV)</button></div>'+
     '<label>Restaurar backup (cole o texto aqui)</label><input id="bk" placeholder="Cole o backup"><div class="row"><button class="btn" data-act="restore">Restaurar</button></div>'+
@@ -2030,7 +2087,7 @@ function aVoz(){
 /* ---------- eventos ---------- */
 document.addEventListener('input',function(e){
   var t=e.target;
-  if(t.classList&&t.classList.contains('money')){var c=toCents(t.value);t.value=c?fmt(c):'';if(t.id==='pv')pRes();if(t.id==='ma')mSug();if(t.classList.contains('rpv'))rSoma()}
+  if(t.classList&&t.classList.contains('money')){var neg=t.id==='pg-saldo'&&String(t.value).trim().startsWith('-'),c=toCents(t.value);t.value=c?fmt(neg?-c:c):(neg?'-':'');if(t.id==='pv')pRes();if(t.id==='ma')mSug();if(t.classList.contains('rpv'))rSoma()}
   if(t.id==='bx'){buscaExt=t.value;var xl=$('#xl');if(xl)xl.innerHTML=extratoLista(mesSel,todayStr())}
   if(t.id==='qt')onQuick(t.value);
   if(t.id==='qd')t.dataset.auto='0';
@@ -2047,6 +2104,13 @@ document.addEventListener('click',function(e){
   switch(a){
     case'ui-privacy':uiHideDaily=!uiHideDaily;render();var privacy=$('[data-act="ui-privacy"]');if(privacy)privacy.focus();break;
     case'ui-calculo':openSheet('<h2>Seu valor para hoje <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+vComoCalc(today,budget(db,today)));break;
+    case'pg-carteira':case'pg-voltar':pgCarteira();break;
+    case'pg-novo':pgForm();break;case'pg-editar':pgForm(id);break;case'pg-salvar':pgSalvar();break;
+    case'pg-planejar':pgPlanejar();break;case'pg-programar':pgProgramar();break;
+    case'pg-fatura':pgFaturaForm(id,el.getAttribute('data-data'));break;case'pg-pagar':pgPagar();break;
+    case'pg-somar':{var old=db.pgSomarBancos;if($('#pg-somar').checked&&!(db.meios||[]).some(function(m){return m.tipo==='banco'})){toast('Cadastre seus bancos primeiro.');break}db.pgSomarBancos=$('#pg-somar').checked;if(!save()){db.pgSomarBancos=old;break}render();pgCarteira();toast('Origem do saldo geral atualizada.');break}
+    case'pg-arquivar':{var m=pgMeio(db,id);if(!m)break;var old=m.arquivado;m.arquivado=!m.arquivado;if(!save())m.arquivado=old;render();pgCarteira();break}
+    case'pg-reabrir':{if(!confirm('Reabrir esta fatura? O limite e o saldo do banco serão recalculados.'))break;var snap=JSON.stringify(db),data=el.getAttribute('data-data');db.recs.forEach(function(r){if(r.meioId===id&&r.pgVenc===data){delete r.pgPagoEm;delete r.pgPts;delete r.pgOrigem}});if(!save())db=JSON.parse(snap);render();pgCarteira();break}
     case'nav':view=el.getAttribute('data-v');if(view==='painel'||view==='extrato')mesSel=mesSel||monthOf(today);render();window.scrollTo(0,0);break;
     case'add':sAdd();break;case'addvoz':sAdd();if(window.SpeechRecognition||window.webkitSpeechRecognition)voz();else toast('Neste aparelho, toque no 🎤 do teclado para ditar.');break;case'close':closeSheet();break;case'posso':sPosso();break;case'gear':sGear();break;
     case'setup':sSetup();break;
@@ -2081,7 +2145,7 @@ document.addEventListener('click',function(e){
     case'nada':markReg(db,today);save();render();toast('Anotado. Dia em dia!');break;
     case'pagar':{var rc=db.recs.filter(function(x){return x.id===id})[0];if(!rc)break;sEdit(id);break}
     case'pagarx':sPagar(id);break;
-    case'confpag':{var rp=db.recs.filter(function(x){return x.id===qf.id})[0];if(!rp){closeSheet();break}var nv=toCents($('#pgv').value);if(!nv){toast('Digite o valor que você pagou.');break}var ov=rp.v;rp.v=nv;rp.st='real';markReg(db,today);save();closeSheet();render();toast(nv===ov?'Conta marcada como paga.':'Paga. Valor ajustado para '+fmt(nv)+'.','Desfazer',function(){rp.v=ov;rp.st='prev';save();render()});break}
+    case'confpag':{var rp=db.recs.filter(function(x){return x.id===qf.id})[0];if(!rp){closeSheet();break}var nv=toCents($('#pgv').value);if(!nv){toast('Digite o valor que você pagou.');break}var im=$('#pagarmeio').value,pe=pgValidar(db,im,'d',rp.cat,nv,1);if(pe){toast(pe);break}var ov=rp.v;rp.meioId=im;var cm=pgMeio(db,im);if(cm&&cm.tipo==='cartao')rp.pgVenc=pgVencimento(cm,today);rp.v=nv;rp.st='real';markReg(db,today);save();closeSheet();render();toast(nv===ov?'Conta marcada como paga.':'Paga. Valor ajustado para '+fmt(nv)+'.','Desfazer',function(){rp.v=ov;rp.st='prev';save();render()});break}
     case'edit':sEdit(id);break;
     case'est':qf.st=el.getAttribute('data-s');el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;
     case'saveedit':saveEdit();break;
@@ -2090,7 +2154,7 @@ document.addEventListener('click',function(e){
     case'nuvem':sNuvem();break;
     case'cenario':sCenario();break;case'cenquando':cenQuando();break;case'cenprog':cenProg();break;
     case'progdel':{var pi=(db.prog||[]).map(function(x){return x.id}).indexOf(id);if(pi<0)break;var pgone=db.prog.splice(pi,1)[0];save();render();sCenario();toast('Removido do cenário.','Desfazer',function(){db.prog.push(pgone);save();render()});break}
-    case'progpago':{var pj2=(db.prog||[]).filter(function(x){return x.id===id})[0];if(!pj2)break;db.prog=db.prog.filter(function(x){return x.id!==id});db.recs.push({id:uid(),t:'d',v:pj2.v,cat:'outros',desc:pj2.nome,data:today,st:'real',fixa:false});markReg(db,today);save();closeSheet();render();toast('Registrado como gasto de hoje.','Desfazer',function(){db.recs.pop();db.prog.push(pj2);save();render()});break}
+    case'progpago':{var prg=(db.prog||[]).find(function(x){return x.id===id});if(!prg)break;var snap=JSON.stringify(db),rr2=pgRegistrar(db,{t:'d',v:prg.v,cat:prg.cat||'outros',desc:prg.nome,data:today,meioId:prg.meioId||'',n:1});if(rr2.erro){toast(rr2.erro);break}db.prog=db.prog.filter(function(x){return x.id!==id});markReg(db,today);if(!save()){db=JSON.parse(snap);break}closeSheet();render();toast('Gasto registrado na fonte planejada.');break}
     case'pjnovo':sPjNovo();break;case'pjtipo':qf.pjt=el.getAttribute('data-k');el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;case'pjsave':pjSalvarNovo();break;
     case'pjcod':sPjCod();break;case'pjentrar':pjEntrar();break;case'pjrec':PJ.tentou=false;PJ.erro=null;render();break;
     case'pjdet':sPjDet(id);break;case'pjconv':sPjConvite(id);break;
@@ -2128,13 +2192,13 @@ document.addEventListener('click',function(e){
     case'delmeta':{var mi=db.metas.map(function(x){return x.id}).indexOf(qf.id);if(mi<0)break;var mg=db.metas.splice(mi,1)[0];save();closeSheet();render();toast('Plano excluído.','Desfazer',function(){db.metas.push(mg);save();render()});break}
     case'guardei':sGuardei(id);break;
     case'saveguardei':{var g=toCents($('#gv').value),mt=db.metas.filter(function(x){return x.id===qf.id})[0];if(!g||!mt){toast('Digite o valor.');break}
-      var done=guardarNoPlano(db,mt,g,today);save();closeSheet();render();toast(done?'🎉 Plano alcançado! Parabéns.':'Guardado. Falta '+fmt(Math.max(0,mt.alvo-mt.guardado))+'.');break}
+      var origem=pgMeio(db,mt.meioId);if(pgBeneficio(origem)&&g+(mt.guardado||0)>pgSaldo(db,origem.id)){toast('Este benefício não tem saldo livre para essa reserva.');break}var done=guardarNoPlano(db,mt,g,today);save();closeSheet();render();toast(done?'🎉 Plano alcançado! Parabéns.':'Guardado. Falta '+fmt(Math.max(0,mt.alvo-mt.guardado))+'.');break}
     case'cen':sCen(id);break;case'det':sDet(id);break;case'csv':dlCsv();break;case'bkdepois':db.bkAdiar=addDays(today,3);save();render();toast('Certo, aviso de novo em 3 dias.');break;
     case'ptipo':qf.tipo=el.getAttribute('data-k');document.querySelectorAll('#ptipos .chip').forEach(function(c){c.classList.toggle('on',c===el)});break;
     case'atlas':sAtlas();break;case'avoz':aVoz();break;case'aenviar':aEnviar(false);break;
     case'aex':$('#ac').value=el.getAttribute('data-t');aEnviar(false);break;
     case'acanc':pend=null;$('#ares').innerHTML='';break;
-    case'aconf':{if(!pend)break;var pr=pend;pend=null;var x=executar(db,today,pr.ferramenta,pr.args,'assistente');save();render();aShow(x,pr.falado,pr);break}
+    case'aconf':{if(!pend)break;var pr=pend;if($('#assistmeio'))pr.args.meioId=$('#assistmeio').value;pend=null;var x=executar(db,today,pr.ferramenta,pr.args,'assistente');save();render();aShow(x,pr.falado,pr);break}
     case'copybk':copyBk();break;case'dlbk':dlBk();break;
     case'restore':{try{var v=sanitize(JSON.parse($('#bk').value));if(!v)throw 0;db=v;save();closeSheet();render();toast('Backup restaurado.')}catch(x){toast('Backup inválido. Confira se colou o texto inteiro.')}break}
     case'wipe':if(confirm('Apagar todos os dados deste aparelho? Isso não pode ser desfeito.')){db=emptyDb();save();closeSheet();render()}break;

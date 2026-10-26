@@ -1,0 +1,18 @@
+✔ 100% CDI anual reproduz taxa efetiva e IR de 17,5% (1.301347ms)
+✔ LCI/LCA sem IR e IOF nesta simulação PF (0.240533ms)
+✔ aporte no fim do período não rende nem paga impostos (0.154523ms)
+✔ taxa zero preserva principal com aportes (0.239409ms)
+✔ limites regressivos de IR (1.019432ms)
+✔ IOF termina em 30 dias (0.163195ms)
+✔ não considerar vazio um documento com investimentos (0.450797ms)
+✔ envio pendente mantém dirty quando há edição durante PATCH (1.077852ms)
+✔ bridge reverte alteração se armazenamento falhar (1.231538ms)
+✔ service worker não intercepta API nem apaga caches de outros apps (2.35845ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15.660478

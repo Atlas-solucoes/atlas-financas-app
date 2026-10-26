@@ -1059,7 +1059,7 @@ function nvEntrar(email,senha,criar){
 }
 function nvSair(){N={};nvStore();if(typeof pjReset==='function')pjReset()}
 function nvDocLocal(){return JSON.parse(JSON.stringify(db))}
-function nvVazio(d){return!(d.recs&&d.recs.length)&&!(d.metas&&d.metas.length)}
+function nvVazio(d){return !['recs','metas','aportes','prog','prio','investimentos','log'].some(function(k){return Array.isArray(d[k])&&d[k].length})&&!Object.keys(d.reg||{}).length&&!(d.saldo)&&!d.onb}
 function nvAplicar(doc,rev){
   try{localStorage.setItem(KEY+'-antes-nuvem',JSON.stringify(db))}catch(e){}
   var v=sanitize(doc);if(!v)return false;db=v;nvMute=true;save();nvMute=false;N.rev=rev;N.dirty=false;N.ok=Date.now();nvStore();return true;
@@ -1073,7 +1073,7 @@ function nvSync(){
   return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&select=doc,revision,device,updated_at').then(function(r){
     if(!r.ok)throw r;var row=r.j&&r.j[0];
     if(!row){ // nada na nuvem: sobe o que temos
-      return nvApi('/rest/v1/app_state',{method:'POST',prefer:'return=representation',body:{user_id:N.uid,doc:nvDocLocal(),revision:1,device:nvDevice()}}).then(function(w){if(!w.ok)throw w;N.rev=1;N.dirty=false;N.ok=Date.now();nvEstado('ok')});
+      var sent=nvDocLocal();return nvApi('/rest/v1/app_state',{method:'POST',prefer:'return=representation',body:{user_id:N.uid,doc:sent,revision:1,device:nvDevice()}}).then(function(w){if(!w.ok)throw w;N.rev=1;N.dirty=JSON.stringify(sent)!==JSON.stringify(db);N.ok=Date.now();nvEstado('ok')});
     }
     if(N.rev==null){ // primeira vez neste aparelho
       if(nvVazio(db)){nvAplicar(row.doc,row.revision);nvEstado('ok');render();toast('Seus dados da nuvem foram carregados.');return}
@@ -1086,13 +1086,13 @@ function nvSync(){
       nvEstado('conflito');nvPerguntar(row);return;
     }
     nvEstado('conflito');nvPerguntar(row);
-  }).catch(function(e){nvEstado(e&&e.status?'conflito':'offline');if(e&&e.status&&e.status!==401)toast('Não consegui sincronizar agora. Seus dados estão salvos neste aparelho.')}).then(function(){nvBusy=false});
+  }).catch(function(e){nvEstado(e&&e.status?'conflito':'offline');if(e&&e.status&&e.status!==401)toast('Não consegui sincronizar agora. Seus dados estão salvos neste aparelho.')}).then(function(){nvBusy=false;if(N.dirty&&N.estado==='ok')nvAgendar()});
 }
 function nvEmpurrar(base){
-  return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&revision=eq.'+base,{method:'PATCH',prefer:'return=representation',body:{doc:nvDocLocal(),revision:base+1,device:nvDevice()}}).then(function(w){
+  var sent=nvDocLocal();return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&revision=eq.'+base,{method:'PATCH',prefer:'return=representation',body:{doc:sent,revision:base+1,device:nvDevice()}}).then(function(w){
     if(!w.ok)throw w;
     if(!w.j||!w.j.length){nvEstado('conflito');return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&select=doc,revision,device,updated_at').then(function(g){if(g.ok&&g.j&&g.j[0])nvPerguntar(g.j[0])})}
-    N.rev=base+1;N.dirty=false;N.ok=Date.now();nvEstado('ok');
+    N.rev=base+1;N.dirty=JSON.stringify(sent)!==JSON.stringify(db);N.ok=Date.now();nvEstado('ok');
   });
 }
 function nvPerguntar(row){
@@ -2149,7 +2149,7 @@ function voz(){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet();if(e.key==='Enter'&&e.target.id==='qt'){e.preventDefault();saveAdd()}if(e.key==='Enter'&&e.target.id==='ac'){e.preventDefault();aEnviar(false)}});
 
 /* Porta de entrada para o Atlas assistente (ver docs/ASSISTENTE-ACOES.md) */
-window.AtlasInvestBridge={get:function(){return JSON.parse(JSON.stringify(db.investimentos||[]))},save:function(arr){if(!Array.isArray(arr)||arr.length>200)return false;db.investimentos=arr;save();return true},loggedIn:function(){return nvLogado()}};
+window.AtlasInvestBridge={get:function(){return JSON.parse(JSON.stringify(db.investimentos||[]))},save:function(arr){if(!Array.isArray(arr)||arr.length>200)return false;var candidate=sanitize(Object.assign({},db,{investimentos:arr}));if(!candidate||candidate.investimentos.length!==arr.length)return false;var previous=db.investimentos;db.investimentos=candidate.investimentos;if(!save()){db.investimentos=previous;return false}return true},loggedIn:function(){return nvLogado()}};
 window.AtlasFin={
   ferramentas:FERRAMENTAS,
   interpretar:function(texto){return interpretar(db,todayStr(),texto)},
@@ -2160,3 +2160,4 @@ try{if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigato
 (nvLogado()?nvSync():Promise.resolve()).then(function(){if(!db.onb&&!db.recs.length&&!$('#sheet').innerHTML)sSetup()});
 </script>
 </body></html>
+

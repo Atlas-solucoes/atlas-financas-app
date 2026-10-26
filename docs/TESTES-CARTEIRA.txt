@@ -1,0 +1,22 @@
+✔ saldo bancário soma contas e exclui VA, VR e crédito (4.720282ms)
+✔ salário em duas quinzenas só altera cada banco após recebimento (5.090178ms)
+✔ várias fontes e recarga mensal de benefício preservam destino na recorrência (1.322747ms)
+✔ gasto VA reduz benefício e mantém caixa bancário (1.411163ms)
+✔ benefícios validam categoria, saldo e proíbem parcelas (0.935228ms)
+✔ crédito não é renda e recusa compra além do limite (0.944936ms)
+✔ parcelas preservam centavos, usam fechamento e comprometem limite total (1.768965ms)
+✔ meses curtos e virada de ano geram vencimentos reais (1.863153ms)
+✔ fatura quitada ajusta banco uma vez e libera somente parcelas pagas (1.386697ms)
+✔ compra no crédito é caixa futuro, não saída bancária imediata (1.438223ms)
+✔ plano de VA e gasto programado não retiram dinheiro bancário (1.151114ms)
+✔ roundtrip salva carteira, parcelas, planos e os dados antigos (1.730794ms)
+✔ saldo conferido incorpora histórico sem contar recebimento duas vezes (0.975704ms)
+✔ conferência de saldo incorpora timestamp do último registro mesmo no mesmo milissegundo (0.922424ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33.941662

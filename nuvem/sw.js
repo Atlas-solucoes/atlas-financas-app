@@ -1,5 +1,5 @@
 // Cache apenas dos arquivos públicos desta aplicação; dados de conta nunca são armazenados.
-var VERSAO='atlas-financas-investimentos-17';
+var VERSAO='atlas-financas-investimentos-18';
 var PREFIXO='atlas-financas-investimentos-';
 var ARQ=['./','./index.html','./investimentos.html','./manifest.webmanifest','./logo-financas.svg','./icone-192.png','./icone-512.png','./apple-touch-icon.png','./favicon-32.png'];
 var PUBLICOS=ARQ.map(function(p){return new URL(p,self.registration.scope).href});

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-26T22:05:51.705643+00:00",
+  "scope": "Chromium emulado; Supabase simulado, nenhum dado real",
+  "results": [
+    "PASS: UI → bridge → REST simulado → segundo navegador → recarga; lançamento preservado",
+    "PASS: carteira com bancos/VA/VR/crédito, salário em quinzenas, recarga mensal, fatura sem duplicação, planos e reload no segundo contexto",
+    "PASS: sem rolagem horizontal em 320/360/390 px (Chromium emulado)",
+    "PASS: consulta BCB real pelo navegador, incluindo CORS; BCB/SGS 4389 — CDI anualizado: 13.65% a.a.; referência 23/10/2026. Última observação disponível, não garantia futura.",
+    "PASS: contrato BCB positivo com payload de teste identificado (rede simulada)",
+    "PASS: falha na API preserva taxa da simulação",
+    "PASS: PWA abre app e investimentos offline após instalação do SW",
+    "PASS: zero exceções JavaScript não tratadas",
+    "PASS: endereço publicado responde e cabe em 390 px; perfil novo sem acesso ao Supabase real"
+  ],
+  "commit": "28955f865273170b4d9ecd4888407804122efbb1",
+  "workflow": "https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40409646298",
+  "unit_tests": {
+    "regression": 19,
+    "carteira": 14,
+    "failures": 0
+  },
+  "database_guard": {
+    "migration": "20261026220050_proteger_carteira_clientes_legados",
+    "temporary_data_only": true,
+    "authenticated_old_blocked": true,
+    "authenticated_new_accepted": true
+  }
+}

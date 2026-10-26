@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-26T18:50:35.606860+00:00",
+  "scope": "Chromium emulado; Supabase simulado, nenhum dado real",
+  "results": [
+    "PASS: UI → bridge → REST simulado → segundo navegador → recarga; lançamento preservado",
+    "PASS: sem rolagem horizontal em 320/360/390 px (Chromium emulado)",
+    "PASS: consulta BCB real pelo navegador, incluindo CORS; BCB/SGS 4389 — CDI anualizado: 13.65% a.a.; referência 23/10/2026. Última observação disponível, não garantia futura.",
+    "PASS: falha na API preserva taxa da simulação",
+    "PASS: PWA abre app e investimentos offline após instalação do SW",
+    "PASS: zero exceções JavaScript não tratadas"
+  ],
+  "commit": "7b916fbbc5b0e838c09e2d327f2b524aac69ca31",
+  "workflow_url": "https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40381209049"
+}

@@ -107,11 +107,87 @@ nav .fab{width:62px;height:62px;border-radius:50%;background:var(--green);color:
 .srch{margin:12px 0 0}
 .srch input{width:100%;font:inherit;padding:11px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink)}
 .card svg{display:block;max-width:100%;height:auto}
+
+/* Atlas: apresentação móvel, sem alterar o motor financeiro. */
+:root{--navy:#17458F;--navy2:#0E2C5E;--ink:#152D50;--mut:#52647D;--bg:#FAFBFD;--line:#DFE7F0;--green:#147D59;--greenbg:#EAF6F0;--amber:#925A00;--amberbg:#FFF5DF;--red:#B73333;--redbg:#FCEDED;--soft:#EDF4FD}
+body{font:1rem/1.5 'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);overflow-wrap:anywhere}
+button,input,select,textarea{font-family:inherit}
+button{touch-action:manipulation}
+button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--navy);outline-offset:4px}
+#app{max-width:560px;padding:20px 20px calc(8rem + env(safe-area-inset-bottom))}
+.top{gap:12px;flex-wrap:wrap;min-height:52px;margin:0 0 22px}
+.brand{display:block;max-width:58%;width:180px;height:auto}
+.top-actions{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.head-action,.text-action{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:none;border:0;color:var(--navy);font:inherit;min-height:48px;padding:8px;cursor:pointer;border-radius:12px}
+.head-action{font-size:.875rem;font-weight:600;white-space:nowrap}
+.ui-icon{display:inline-block;width:22px;height:22px;flex:none;vertical-align:middle}
+.ui-icon svg{display:block;width:100%;height:100%}
+.status-row{margin:-14px 0 14px}.status-row:empty{display:none}
+.page-heading{font-size:1.5rem;letter-spacing:-.4px;margin:4px 0 16px;color:var(--navy2)}
+.today-summary{border-radius:22px;background:var(--soft);padding:20px 22px 0;margin:0;color:var(--navy2)}
+.summary-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.summary-top h1{font-size:1.375rem;font-weight:700}
+.privacy{font-size:.875rem;padding:4px 0 4px 10px;min-height:44px}
+.balance-label{font-size:1rem;margin:12px 0 2px;color:var(--mut)}
+.balance-value{display:block;font-size:clamp(1.8rem,9vw,2.6rem);letter-spacing:-1px;line-height:1.2;font-weight:750;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.balance-value.neg{color:var(--red)}
+.balance-date{color:var(--mut);font-size:.9375rem;margin:8px 0 18px}
+.summary-detail{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 0;min-height:48px;color:var(--navy);font:inherit;font-weight:650;border:0;border-top:1px solid #D4E1F1;background:none;text-align:left;cursor:pointer}
+.quick-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,5.5em),1fr));gap:12px;margin:18px 0 24px}
+.quick-action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line);border-radius:18px;background:#fff;color:var(--navy2);font:inherit;font-weight:650;padding:14px 4px;min-height:104px;cursor:pointer;text-align:center}
+.quick-action .ui-icon{width:30px;height:30px;color:var(--navy)}
+.quick-action:hover{background:var(--soft)}
+.home-section{margin:22px 0 0}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.section-heading h2{font-size:1.1875rem;letter-spacing:-.25px}
+.section-heading .text-action{font-size:.875rem;padding-right:0;flex:none}
+.home-list .item{margin:0;background:none}
+.item{width:100%;text-align:left;color:var(--ink);font:inherit;background:none;border:0;border-top:1px solid var(--line);padding:14px 0;min-height:64px;gap:12px}
+.item .ic{width:42px;height:42px;border-radius:14px;background:var(--soft);color:var(--navy)}
+.item .tx b{font-size:1rem;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.item .tx span{font-size:.875rem}
+.item .vl{font-size:.9375rem;text-align:right;white-space:normal;max-width:43%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.home-note{padding:16px;border-radius:16px;background:var(--amberbg);margin-top:18px}
+.note-head{display:flex;gap:12px;align-items:center}
+.note-head>.ui-icon{color:var(--amber);width:26px;height:26px}
+.note-head>div{flex:1;min-width:0}.note-head b{font-size:1rem}.note-head p{margin:2px 0 0;font-size:.9375rem}
+.home-note .text-action{padding-right:0;font-size:.9375rem}
+.home-note.late{background:var(--redbg)}
+.home-plan{padding:16px 18px;background:var(--soft);border-radius:18px;margin-top:18px}
+.home-plan .section-heading h2{font-size:1.125rem}.home-plan .muted{font-size:.9375rem}
+.home-plan .bar-fg{background:var(--navy)}
+.home-empty{padding:8px 0 0;margin:0;color:var(--mut);font-size:.9375rem}
+.home-tools{margin-top:24px;border-top:1px solid var(--line);padding-top:8px}
+.tool-row{display:flex;width:100%;align-items:center;gap:12px;min-height:60px;padding:12px 0;border:0;border-bottom:1px solid var(--line);background:none;color:var(--navy2);font:inherit;font-weight:600;text-align:left;cursor:pointer}
+.tool-row>span:not(.ui-icon){flex:1}
+.home-more{margin-top:18px}.home-more>summary{color:var(--navy);font-weight:650;min-height:48px;padding:12px 0;cursor:pointer}
+.home-more .card{background:#fff;box-shadow:none}
+.btn{min-height:48px;border-radius:14px}.btn.pri{background:var(--navy);border-color:var(--navy)}
+.btn.sm{min-height:44px}.icon-btn{min-width:44px;min-height:44px}
+.chip{min-height:44px}.card{padding:18px;border-radius:18px;box-shadow:none}.card h3{font-size:1.0625rem}.muted{font-size:.9375rem}
+.pn label{font-size:.9375rem}.pn input,.pn select{min-height:48px}.pn input.money{font-size:2rem}
+.qt input{min-width:0;flex:1}.chips input[type=date]{max-width:100%}
+.sheet .pn{max-width:560px;max-height:92dvh;padding:22px 20px calc(22px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;overscroll-behavior:contain}
+.sheet .pn h2{font-size:1.25rem}.sheet .pn .row{gap:10px}
+.row>.btn{min-width:100px}.kpis>div{min-width:0}.kpis b,.leg b{overflow-wrap:anywhere;white-space:normal}.leg{flex-wrap:wrap}
+nav{z-index:10;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:#fff}
+nav .in{max-width:560px;grid-template-columns:repeat(auto-fit,minmax(min(100%,4.3em),1fr));align-items:stretch}
+nav button{position:relative;display:flex;align-items:center;justify-content:center;gap:5px;flex-direction:column;padding:8px 2px;font-size:.8125rem;min-height:60px;border-radius:12px}
+nav button .ui-icon{font-size:inherit;width:24px;height:24px}
+nav button>span:not(.ui-icon){font-size:inherit}
+nav button.on{color:var(--navy);background:var(--soft)}
+nav button.on:after{content:'';display:block;width:18px;height:3px;border-radius:4px;background:#C98708;position:absolute;bottom:3px}
+.toast{bottom:calc(96px + env(safe-area-inset-bottom));box-shadow:0 4px 18px #152D5026}.toast button{min-height:44px;color:#A9E9CB}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:359px){#app{padding-left:14px;padding-right:14px}.top{gap:6px}.brand{width:150px;max-width:53%}.head-action{padding:6px;font-size:.8125rem}.quick-actions{gap:8px}.quick-action{font-size:.875rem}.today-summary{padding:16px 16px 0}.section-heading{flex-wrap:wrap}.item .vl{max-width:39%}}
+@media(min-width:760px){#app{padding-top:28px}.sheet{align-items:center}.sheet .pn{border-radius:24px;max-height:88dvh}nav .in{gap:10px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+
 </style></head>
 <body>
 <div id="app"></div>
 <div id="sheet" class="sheet" hidden></div>
-<div id="toast" class="toast" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script>
 /* Rede de segurança: se algo quebrar ao abrir, mostra o motivo na tela (em vez de página em branco) e oferece limpar o cache do app. */
 (function(){
@@ -1235,59 +1311,99 @@ function toast(msg,label,fn){
   var t=$('#toast');t.hidden=false;t.innerHTML='<span>'+esc(msg)+'</span>'+(label?'<button type="button" data-act="toastact">'+esc(label)+'</button>':'');
   t._fn=fn||null;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true},label?7000:4000);
 }
-function openSheet(html){$('#toast').hidden=true;var s=$('#sheet');s.innerHTML='<div class="pn">'+html+'</div>';s.hidden=false;var i=s.querySelector('input.money,input[autofocus]');if(i)setTimeout(function(){i.focus()},60)}
-function closeSheet(){$('#sheet').hidden=true;$('#sheet').innerHTML='';qf=null}
+function openSheet(html){
+  $('#toast').hidden=true;
+  var s=$('#sheet');if(s.hidden)uiReturnFocus=document.activeElement;
+  s.innerHTML='<div class="pn" role="dialog" aria-modal="true" aria-label="Formulário do Atlas">'+html+'</div>';s.hidden=false;
+  var pn=s.querySelector('.pn'),heading=pn.querySelector('h2');
+  if(heading){heading.id='atlas-dialog-title';pn.setAttribute('aria-labelledby',heading.id);pn.removeAttribute('aria-label')}
+  pn.querySelectorAll('label:not([for])').forEach(function(label,i){var input=label.nextElementSibling;if(input&&/^(INPUT|SELECT|TEXTAREA)$/.test(input.tagName)){if(!input.id)input.id='atlas-field-'+i;label.htmlFor=input.id}});
+  $('#app').setAttribute('inert','');$('#app').setAttribute('aria-hidden','true');document.body.style.overflow='hidden';
+  var i=pn.querySelector('input.money,input[autofocus]')||pn.querySelector('button,input,select,textarea');
+  if(i)setTimeout(function(){if(s.contains(i))i.focus()},60);
+}
+function closeSheet(){
+  $('#sheet').hidden=true;$('#sheet').innerHTML='';qf=null;
+  $('#app').removeAttribute('inert');$('#app').removeAttribute('aria-hidden');document.body.style.overflow='';
+  var target=uiReturnFocus&&uiReturnFocus.isConnected?uiReturnFocus:$('#app button');if(target)target.focus();uiReturnFocus=null;
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Tab'||$('#sheet').hidden)return;
+  var controls=Array.from($('#sheet').querySelectorAll('button,input,select,textarea,a[href],[tabindex="0"]')).filter(function(el){return!el.disabled&&el.getClientRects().length});
+  if(!controls.length)return;
+  var first=controls[0],last=controls[controls.length-1];
+  if(e.shiftKey&&(document.activeElement===first||!$('#sheet').contains(document.activeElement))){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&(document.activeElement===last||!$('#sheet').contains(document.activeElement))){e.preventDefault();first.focus()}
+});
+
 function monthName(ym){var n=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'],p=ym.split('-');return n[+p[1]-1]+' de '+p[0]}
 function shortDate(d,today){if(d===today)return'hoje';if(d===addDays(today,-1))return'ontem';if(d===addDays(today,1))return'amanhã';return d.slice(8,10)+'/'+d.slice(5,7)}
 
+/* Bootstrap Icons (MIT), https://github.com/twbs/icons
+Copyright (c) 2019-2024 The Bootstrap Authors.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. */
+var uiReturnFocus=null;
+var UI_ICONS={"house": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-house\" viewBox=\"0 0 16 16\">\n  <path d=\"M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z\"/>\n</svg>", "journal-text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-journal-text\" viewBox=\"0 0 16 16\">\n  <path d=\"M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5\"/>\n  <path d=\"M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2\"/>\n  <path d=\"M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z\"/>\n</svg>", "calendar2-check": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-calendar2-check\" viewBox=\"0 0 16 16\">\n  <path d=\"M10.854 8.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708 0\"/>\n  <path d=\"M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M2 2a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z\"/>\n  <path d=\"M2.5 4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5z\"/>\n</svg>", "bullseye": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-bullseye\" viewBox=\"0 0 16 16\">\n  <path d=\"M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16\"/>\n  <path d=\"M8 13A5 5 0 1 1 8 3a5 5 0 0 1 0 10m0 1A6 6 0 1 0 8 2a6 6 0 0 0 0 12\"/>\n  <path d=\"M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8\"/>\n  <path d=\"M9.5 8a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0\"/>\n</svg>", "plus-lg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-plus-lg\" viewBox=\"0 0 16 16\">\n  <path fill-rule=\"evenodd\" d=\"M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2\"/>\n</svg>", "mic": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-mic\" viewBox=\"0 0 16 16\">\n  <path d=\"M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5\"/>\n  <path d=\"M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3\"/>\n</svg>", "gear": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-gear\" viewBox=\"0 0 16 16\">\n  <path d=\"M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0\"/>\n  <path d=\"M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z\"/>\n</svg>", "eye": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-eye\" viewBox=\"0 0 16 16\">\n  <path d=\"M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z\"/>\n  <path d=\"M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0\"/>\n</svg>", "eye-slash": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-eye-slash\" viewBox=\"0 0 16 16\">\n  <path d=\"M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7 7 0 0 0-2.79.588l.77.771A6 6 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755q-.247.248-.517.486z\"/>\n  <path d=\"M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829\"/>\n  <path d=\"M3.35 5.47q-.27.24-.518.487A13 13 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7 7 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12z\"/>\n</svg>", "chevron-right": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-chevron-right\" viewBox=\"0 0 16 16\">\n  <path fill-rule=\"evenodd\" d=\"M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708\"/>\n</svg>", "graph-up": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-graph-up\" viewBox=\"0 0 16 16\">\n  <path fill-rule=\"evenodd\" d=\"M0 0h1v15h15v1H0zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07\"/>\n</svg>", "wallet2": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-wallet2\" viewBox=\"0 0 16 16\">\n  <path d=\"M12.136.326A1.5 1.5 0 0 1 14 1.78V3h.5A1.5 1.5 0 0 1 16 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 13.5v-9a1.5 1.5 0 0 1 1.432-1.499zM5.562 3H13V1.78a.5.5 0 0 0-.621-.484zM1.5 4a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5z\"/>\n</svg>", "lightbulb": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-lightbulb\" viewBox=\"0 0 16 16\">\n  <path d=\"M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a2 2 0 0 0-.453-.618A5.98 5.98 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.83 12h4.342l.632-1.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1\"/>\n</svg>", "basket": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-basket\" viewBox=\"0 0 16 16\">\n  <path d=\"M5.757 1.071a.5.5 0 0 1 .172.686L3.383 6h9.234L10.07 1.757a.5.5 0 1 1 .858-.514L13.783 6H15a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1v4.5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 13.5V9a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h1.217L5.07 1.243a.5.5 0 0 1 .686-.172zM2 9v4.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V9zM1 7v1h14V7zm3 3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3A.5.5 0 0 1 4 10m2 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3A.5.5 0 0 1 6 10m2 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3A.5.5 0 0 1 8 10m2 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5m2 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5\"/>\n</svg>", "arrow-up-circle": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-arrow-up-circle\" viewBox=\"0 0 16 16\">\n  <path fill-rule=\"evenodd\" d=\"M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-7.5 3.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707z\"/>\n</svg>", "chat-dots": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" fill=\"currentColor\" class=\"bi bi-chat-dots\" viewBox=\"0 0 16 16\">\n  <path d=\"M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2\"/>\n  <path d=\"m2.165 15.803.02-.004c1.83-.363 2.948-.842 3.468-1.105A9 9 0 0 0 8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6a10.4 10.4 0 0 1-.524 2.318l-.003.011a11 11 0 0 1-.244.637c-.079.186.074.394.273.362a22 22 0 0 0 .693-.125m.8-3.108a1 1 0 0 0-.287-.801C1.618 10.83 1 9.468 1 8c0-3.192 3.004-6 7-6s7 2.808 7 6-3.004 6-7 6a8 8 0 0 1-2.088-.272 1 1 0 0 0-.711.074c-.387.196-1.24.57-2.634.893a11 11 0 0 0 .398-2\"/>\n</svg>"},uiHideDaily=false;
+function uiIcon(name){return '<span class="ui-icon" aria-hidden="true">'+(UI_ICONS[name]||UI_ICONS['journal-text'])+'</span>'}
+function uiCategory(cat){return {mercado:'basket',comida:'basket',transporte:'wallet2',casa:'house',saude:'plus-lg',lazer:'bullseye',compras:'basket',educacao:'journal-text'}[cat]||'journal-text'}
+function uiTool(action,icon,label,extra){return '<button type="button" class="tool-row" data-act="'+action+'"'+(extra||'')+'>'+uiIcon(icon)+'<span>'+label+'</span>'+uiIcon('chevron-right')+'</button>'}
+
 function recRow(r,today,act){
-  var icon=r.t==='r'?'💰':catIcon(r.cat),late=r.st==='prev'&&r.data<today;
+  var icon=r.t==='r'?'arrow-up-circle':uiCategory(r.cat),late=r.st==='prev'&&r.data<today;
   var sub=(r.t==='r'?'Entrada':catLabel(r.cat))+' · '+shortDate(r.data,today)+(r.st==='prev'?(r.t==='r'?' · prevista':' · a pagar'):'')+(r.rec==='m'?' · todo mês':'');
-  return'<div class="item tap" data-act="'+(act||'edit')+'" data-id="'+esc(r.id)+'"><div class="ic">'+icon+'</div><div class="tx"><b>'+esc(r.desc||catLabel(r.cat))+'</b><span>'+esc(sub)+'</span></div><div class="vl '+(r.t==='r'?'in':late?'late':'')+'">'+(r.t==='r'?'+':'')+fmt(r.v)+'</div></div>';
+  return'<button type="button" class="item tap" data-act="'+(act||'edit')+'" data-id="'+esc(r.id)+'"><span class="ic">'+uiIcon(icon)+'</span><span class="tx"><b>'+esc(r.desc||catLabel(r.cat))+'</b><span>'+esc(sub)+'</span></span><span class="vl '+(r.t==='r'?'in':late?'late':'')+'">'+(r.t==='r'?'+':'− ')+fmt(r.v)+'</span></button>';
 }
 
 function render(){
   var today=todayStr();
   if(ensureRecurring(db,today))save();
   if(!mesSel)mesSel=monthOf(today);
-  var h=new Date().getHours(),sd=streak(db,today);
-  var top='<div class="top"><div class="hi" style="display:flex;align-items:center;gap:10px"><img src="logo-financas.svg" alt="Atlas Finanças" height="44" style="height:44px;width:auto;display:block"></div><div style="display:flex;gap:8px;align-items:center">'+
-    (sd>0?'<span class="chip on" style="white-space:nowrap" title="Dias seguidos registrando">🔥 '+sd+(nvLogado()?'':(sd===1?' dia':' dias'))+'</span>':'')+
-    nvChip()+'<button class="icon-btn" data-act="atlas" aria-label="Falar com o Atlas">🎙</button><button class="icon-btn" data-act="gear" aria-label="Ajustes e backup">⚙</button></div></div>';
-  var body=view==='hoje'?vHoje(today):view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):vMetas(today);
-  var nav='<nav><div class="in">'+[['hoje','🏠','Hoje'],['extrato','📒','Extrato']].map(navBtn).join('')+'<button class="fab" data-act="add" aria-label="Registrar">+</button>'+[['painel','📊','Painel'],['contas','🧾','Contas'],['metas','🎯','Planos']].map(navBtn).join('')+'</div></nav>';
-  $('#app').innerHTML=top+body+nav;
-  var arc=$('#arc');if(arc){var to=arc.getAttribute('data-off');arc.style.strokeDashoffset=arc.getAttribute('data-c');requestAnimationFrame(function(){requestAnimationFrame(function(){arc.style.strokeDashoffset=to})})}
+  var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
+  var title={extrato:'Extrato',painel:'Resumo do mês',contas:'Contas',metas:'Seus planos'};
+  var body=view==='hoje'?vHoje(today):'<h1 class="page-heading">'+title[view]+'</h1>'+(view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):vMetas(today));
+  var nav='<nav aria-label="Navegação principal"><div class="in">'+[['hoje','house','Início'],['extrato','journal-text','Extrato'],['contas','calendar2-check','Contas'],['metas','bullseye','Planos']].map(navBtn).join('')+'</div></nav>';
+  $('#app').innerHTML=top+'<main id="conteudo">'+body+'</main>'+nav;
 }
-function navBtn(a){return'<button data-act="nav" data-v="'+a[0]+'" class="'+(view===a[0]?'on':'')+'"><span>'+a[1]+'</span>'+a[2]+'</button>'}
+function navBtn(a){return'<button type="button" data-act="nav" data-v="'+a[0]+'"'+(view===a[0]?' aria-current="page"':'')+' class="'+(view===a[0]?'on':'')+'">'+uiIcon(a[1])+'<span>'+a[2]+'</span></button>'}
 
 function vHoje(today){
-  var b=budget(db,today),hero;
+  var b=budget(db,today),h='';
   if(b.semRenda){
-    hero='<div class="hero"><div class="empty-hero"><h2>Quanto você pode gastar hoje?</h2><p class="sub">Informe o que você recebe por mês. Em 20 segundos o Atlas calcula seu limite por dia.</p><div class="row"><button class="btn pri" data-act="setup">Informar minha renda</button></div></div></div>';
+    h='<section class="today-summary"><div class="summary-top"><h1>Vamos começar?</h1></div><p class="balance-label">Organize seu dinheiro e tire seus planos do papel.</p><p class="balance-date">Informe sua renda para ver uma primeira estimativa.</p><button type="button" class="summary-detail" data-act="setup"><span>Informar minha renda</span>'+uiIcon('chevron-right')+'</button></section>';
   }else{
-    var C=2*Math.PI*84,rem,ratio=b.limiteDia>0?b.gastoHoje/b.limiteDia:(b.gastoHoje>0?1:0),col=b.sobraHoje<0||ratio>=1?'#FF8A8A':ratio>=.75?'#F5C451':'#3DDC97',rem=b.limiteDia>0?Math.max(0,Math.min(1,b.sobraHoje/b.limiteDia)):0,off=C*(1-rem);
-    hero='<div class="hero"><div class="ring"><svg width="216" height="216" viewBox="0 0 216 216"><circle class="trk" cx="108" cy="108" r="84" fill="none" stroke-width="16"/><circle id="arc" class="bar" cx="108" cy="108" r="84" fill="none" stroke="'+col+'" stroke-width="16" stroke-linecap="round" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" data-off="'+off.toFixed(1)+'" data-c="'+C.toFixed(1)+'"/></svg>'+
-      '<div class="mid"><small>'+(b.sobraHoje<0?'Passou do limite de hoje':'Você pode gastar hoje')+'</small><b class="'+(b.sobraHoje<0?'neg':'')+'">'+fmt(b.sobraHoje<0?-b.sobraHoje:b.sobraHoje)+'</b><small>de '+fmt(b.limiteDia)+' por dia</small></div></div>'+
-      '<div class="sub">'+(b.modo==='caixa'?(b.estourou?'As contas e reservas até '+fmt0d(b.proxRenda)+' passam do seu saldo em '+fmt(b.estourou)+'. Hoje o valor é zero.':'Até '+fmt0d(b.proxRenda)+' (quando você recebe de novo): '+b.diasRest+(b.diasRest===1?' dia':' dias')+' · sobram '+fmt(b.restante)):(b.estourou?'O mês já passou do planejado em '+fmt(b.estourou)+'. Hoje o limite é zero.':'Restam '+b.diasRest+(b.diasRest===1?' dia':' dias')+' · sobram '+fmt(b.restante)+' no mês'))+'</div></div>';
+    var periodo=b.modo==='caixa'?(b.proxSemData?'Próximo recebimento sem data':'Até receber em '+fmt0d(b.proxRenda)):'Com base na renda do mês';
+    h='<section class="today-summary" aria-label="Seu resumo de hoje"><div class="summary-top"><h1>Hoje</h1><button type="button" class="text-action privacy" data-act="ui-privacy" aria-label="'+(uiHideDaily?'Mostrar':'Ocultar')+' valor diário" aria-pressed="'+uiHideDaily+'">'+uiIcon(uiHideDaily?'eye-slash':'eye')+'<span>'+(uiHideDaily?'Mostrar':'Ocultar')+'</span></button></div><p class="balance-label">'+(b.sobraHoje<0?'Acima da estimativa de hoje':'Estimativa para gastar')+'</p><b class="balance-value'+(b.sobraHoje<0?' neg':'')+'">'+(uiHideDaily?'<span aria-label="Valor diário oculto">••••</span>':fmt(b.sobraHoje))+'</b><p class="balance-date">'+periodo+'</p><button type="button" class="summary-detail" data-act="ui-calculo"><span>Ver detalhes do cálculo</span>'+uiIcon('chevron-right')+'</button></section>';
   }
-  var bkh=bkPrecisa(db,today)?'<div class="card"><h3>💾 Hora de fazer um backup</h3><p class="muted" style="margin:0">Seus dados ficam só neste aparelho. Se o navegador for limpo ou o celular trocado, tudo se perde. Leva 10 segundos.</p><div class="row"><button class="btn sm pri" data-act="gear">Fazer backup</button><button class="btn sm" data-act="bkdepois">Lembrar em 3 dias</button></div></div>':'';
-  var acts='<div class="row"><button class="btn pri" data-act="add">Registrar gasto</button><button class="btn" data-act="posso">Posso comprar?</button></div><div class="row"><button class="btn" data-act="addvoz">🎤 Falar um gasto ou entrada</button></div>';
-  if(!db.reg[today])acts+='<div class="row"><button class="btn" data-act="nada">✅ Hoje eu não gastei nada</button></div>';
-  var h=hero+acts+bkh+vCaixaCards(today,b)+vCenarioCard(today)+vComoCalc(today,b);
-  var c=contas(db,today),att=c.atrasadas.concat(c.semana.filter(function(r){return r.data<=addDays(today,3)}));
-  if(att.length){h+='<div class="card"><h3>Pede atenção</h3>'+att.slice(0,4).map(function(r){return recRow(r,today,'pagar')}).join('')+'<p class="muted" style="margin:8px 0 0">Toque na conta para pagar, editar ou excluir.</p></div>'}
-  var w=semana(db,today);
-  if(w.cur>0||w.prev>0){
-    var msg=w.prev>0?(w.cur<=w.prev?'Você gastou '+fmt(w.prev-w.cur)+' a menos que na semana passada.':'Você gastou '+fmt(w.cur-w.prev)+' a mais que na semana passada.'):'Primeira semana com registros. Continue assim.';
-    h+='<div class="card"><h3>Sua semana</h3><div class="kpis"><div><small>Últimos 7 dias</small><b>'+fmt(w.cur)+'</b></div><div><small>7 dias antes</small><b>'+fmt(w.prev)+'</b></div></div><p class="muted" style="margin:10px 0 0">'+esc(msg)+(w.top?' Mais gasto em '+esc(catLabel(w.top))+' ('+fmt(w.topV)+').':'')+'</p></div>';
-  }
-  if(db.recs.length>2){var dc=dicas(db,today).slice(0,1);if(dc.length)h+='<div class="card"><h3>💡 Dica do Atlas</h3>'+dicaHTML(dc[0])+'<div class="row"><button class="btn sm" data-act="nav" data-v="painel">Ver painel completo</button></div></div>'}
-  var ms=db.metas.filter(function(m){return!m.feita}).slice(0,2);
-  if(ms.length)h+='<div class="card"><h3>Seus planos</h3>'+ms.map(function(m){return metaMini(m,today)}).join('')+'<div class="row"><button class="btn sm" data-act="nav" data-v="metas">Ver planos</button></div></div>';
-  if(!db.recs.length&&!b.semRenda)h+='<div class="empty">Toque no + para registrar o primeiro gasto.</div>';
+  h+='<div class="quick-actions" aria-label="Ações rápidas"><button type="button" class="quick-action" data-act="add">'+uiIcon('plus-lg')+'<span>Registrar</span></button><button type="button" class="quick-action" data-act="addvoz">'+uiIcon('mic')+'<span>Falar</span></button><button type="button" class="quick-action" data-act="novameta">'+uiIcon('bullseye')+'<span>Criar plano</span></button></div>';
+  if(b.estourou)h+='<div class="alert bad" role="status">As contas e os planos passam do valor disponível em '+fmt(b.estourou)+'. Confira os detalhes antes de gastar.</div>';
+  h+=vCaixaCards(today,b);
+  var recentes=db.recs.filter(function(r){return r.st==='real'&&r.data<=today}).sort(function(a,b){return a.data<b.data?1:a.data>b.data?-1:0}).slice(0,3);
+  h+='<section class="home-section"><div class="section-heading"><h2>Últimos registros</h2><button type="button" class="text-action" data-act="nav" data-v="extrato">Ver extrato '+uiIcon('chevron-right')+'</button></div>'+(recentes.length?'<div class="home-list">'+recentes.map(function(r){return recRow(r,today)}).join('')+'</div>':'<p class="home-empty">Seus gastos e entradas aparecem aqui. Toque em Registrar para começar.</p>')+'</section>';
+  var pendentes=db.recs.filter(function(r){return r.t==='d'&&r.st==='prev'}).sort(function(a,b){return a.data<b.data?-1:a.data>b.data?1:0}),proxima=pendentes[0];
+  if(proxima)h+='<section class="home-note'+(proxima.data<today?' late':'')+'"><div class="note-head">'+uiIcon('calendar2-check')+'<div><b>'+(proxima.data<today?'Conta pendente: ':'Próxima conta: ')+esc(proxima.desc||catLabel(proxima.cat))+'</b><p>'+fmt0d(proxima.data)+' · '+fmt(proxima.v)+(proxima.data<today?' · Em atraso':'')+'</p></div><button type="button" class="text-action" data-act="pagar" data-id="'+esc(proxima.id)+'" aria-label="Ver conta '+esc(proxima.desc||catLabel(proxima.cat))+'">Ver '+uiIcon('chevron-right')+'</button></div></section>';
+  var ms=db.metas.filter(function(m){return!m.feita}),m=ms[0];
+  h+='<section class="home-plan"><div class="section-heading"><h2>Meus planos</h2><button type="button" class="text-action" data-act="nav" data-v="metas">Ver planos '+uiIcon('chevron-right')+'</button></div>'+(m?metaMini(m,today)+'<button type="button" class="text-action" data-act="det" data-id="'+esc(m.id)+'">Acompanhar meu plano '+uiIcon('chevron-right')+'</button>':'<p class="home-empty">Uma compra, uma viagem ou uma reserva: comece pelo que importa para você.</p><button type="button" class="text-action" data-act="novameta">Criar meu primeiro plano '+uiIcon('chevron-right')+'</button>')+'</section>';
+  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
+  if(!db.reg[today])h+='<button type="button" class="text-action" data-act="nada">Hoje eu não gastei nada</button>';
+  h+='<details class="home-more"><summary>Ver próximos recebimentos e pagamentos</summary>'+vCenarioCard(today)+'</details>';
+  if(bkPrecisa(db,today))h+='<section class="home-note"><b>Guarde uma cópia dos seus dados</b><p class="home-empty">Faça um backup para recuperar seus registros se trocar de aparelho.</p><button type="button" class="text-action" data-act="gear">Fazer backup</button><button type="button" class="text-action" data-act="bkdepois">Lembrar em 3 dias</button></section>';
   return h;
 }
+
 function fmt0d(d){return d.slice(8,10)+'/'+d.slice(5,7)}
 function rendaPendente(today){
   if(db.saldoTs==null)return[];
@@ -1667,7 +1783,7 @@ function sRecebimento(){
     '<div class="row"><button class="btn pri" data-act="saverec">Salvar recebimento</button></div>');
 }
 function sSetup(){
-  openSheet('<img src="logo-financas.svg" alt="Atlas Finanças" style="display:block;height:52px;width:auto;margin:0 0 10px"><h2>Vamos começar <button class="icon-btn" data-act="skipsetup" aria-label="Pular">×</button></h2><p class="muted" style="margin:0">Duas informações e você já vê quanto pode gastar por dia. Dá para ajustar depois.</p>'+
+  openSheet('<img src="logo-financas.svg" alt="Atlas Finanças" style="display:block;height:52px;width:auto;margin:0 0 10px"><h2>Vamos começar <button class="icon-btn" data-act="skipsetup" aria-label="Pular">×</button></h2><p class="muted" style="margin:0">Informe sua renda e quando ela chega. O saldo é opcional e ajuda a melhorar a estimativa. Dá para ajustar depois.</p>'+
     '<label>Quanto você recebe por mês?</label><input class="money" id="sr" inputmode="numeric" placeholder="R$ 0,00">'+
     '<label>Quanto você tem em conta hoje? (opcional, deixa o cálculo bem mais fiel)</label><input class="money" id="ss" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00">'+
     '<label>Em que dia do mês cai? (ou, se for pelo dia útil, marque abaixo)</label><input id="sd" type="number" min="1" max="28" value="5" inputmode="numeric">'+
@@ -1924,6 +2040,8 @@ document.addEventListener('click',function(e){
   if(!el){if(e.target.id==='sheet')closeSheet();return}
   var a=el.getAttribute('data-act'),id=el.getAttribute('data-id'),today=todayStr();
   switch(a){
+    case'ui-privacy':uiHideDaily=!uiHideDaily;render();var privacy=$('[data-act="ui-privacy"]');if(privacy)privacy.focus();break;
+    case'ui-calculo':openSheet('<h2>Seu valor para hoje <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+vComoCalc(today,budget(db,today)));break;
     case'nav':view=el.getAttribute('data-v');if(view==='painel'||view==='extrato')mesSel=mesSel||monthOf(today);render();window.scrollTo(0,0);break;
     case'add':sAdd();break;case'addvoz':sAdd();if(window.SpeechRecognition||window.webkitSpeechRecognition)voz();else toast('Neste aparelho, toque no 🎤 do teclado para ditar.');break;case'close':closeSheet();break;case'posso':sPosso();break;case'gear':sGear();break;
     case'setup':sSetup();break;

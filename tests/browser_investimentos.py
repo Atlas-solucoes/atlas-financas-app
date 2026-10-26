@@ -5,6 +5,7 @@ import copy
 import datetime
 import json
 import os
+import re
 from pathlib import Path
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
@@ -108,11 +109,26 @@ def run():
             a.screenshot(path=str(ARTIFACTS / 'investimentos-mobile.png'), full_page=True)
             evidence.append('PASS: sem rolagem horizontal em 320/360/390 px (Chromium emulado)')
             if os.environ.get('LIVE_CDI') == '1':
-                frame.locator('#fetchCdi').click()
-                expect(frame.locator('#cdiStatus')).to_contain_text('BCB/SGS 4389', timeout=20000)
-                evidence.append('PASS: consulta BCB real pelo navegador, incluindo CORS; ' + frame.locator('#cdiStatus').inner_text())
+                previous_live = frame.locator('#cdi').input_value()
+                official = False
+                for attempt in range(2):
+                    frame.locator('#fetchCdi').click()
+                    expect(frame.locator('#cdiStatus')).to_contain_text(re.compile('BCB/SGS 4389|Consulta indisponível'), timeout=20000)
+                    if 'BCB/SGS 4389' in frame.locator('#cdiStatus').inner_text():
+                        official = True
+                        break
+                if official:
+                    evidence.append('PASS: consulta BCB real pelo navegador, incluindo CORS; ' + frame.locator('#cdiStatus').inner_text())
+                else:
+                    assert frame.locator('#cdi').input_value() == previous_live
+                    evidence.append('EXTERNAL UNAVAILABLE: BCB real após duas tentativas; fallback manual preservou a taxa, sem inventar cotação')
             else:
                 evidence.append('NOT RUN: CDI real (defina LIVE_CDI=1)')
+            contexts[0].route('https://api.bcb.gov.br/**', lambda route: route.fulfill(status=200, json=[{'data': '23/10/2026', 'valor': '13.65'}], headers={'Access-Control-Allow-Origin': '*'}))
+            frame.locator('#fetchCdi').click()
+            expect(frame.locator('#cdiStatus')).to_contain_text('BCB/SGS 4389')
+            assert frame.locator('#cdi').input_value() == '13.65'
+            evidence.append('PASS: contrato BCB positivo com payload de teste identificado (rede simulada)')
             # Falha de API não pode zerar a taxa já escolhida.
             contexts[0].route('https://api.bcb.gov.br/**', lambda route: route.fulfill(status=503, body='indisponível', headers={'Access-Control-Allow-Origin': '*'}))
             previous_rate = frame.locator('#cdi').input_value()

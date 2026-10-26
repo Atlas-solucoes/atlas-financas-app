@@ -55,3 +55,9 @@ Resultados de execução no GitHub Actions devem ser conferidos antes da publica
 Homologação final no celular: conferir saldos de partida com o banco/emissor,
 confirmar uma quinzena e uma recarga, registrar VA/VR, compra parcelada, fatura,
 plano e comparar o saldo após sincronizar o segundo aparelho.
+
+## Evidências adicionais
+
+O primeiro navegador passou todos os formulários de carteira e a recarga no segundo contexto. Parou depois em timeout do BCB real; a interface manteve a taxa manual. O teste separa agora o contrato positivo (payload de teste) da disponibilidade externa: tenta o BCB real no máximo duas vezes e registra EXTERNAL UNAVAILABLE se não responder, exigindo que a taxa anterior permaneça. Esse registro não equivale a aprovação da consulta real naquele horário.
+
+A proteção contra clientes antigos foi aplicada no Supabase e testada em tabela temporária: cliente antigo bloqueado, cliente novo aceito e conta legada sem carteira aceita. Nenhum documento financeiro de usuário foi modificado pelo teste.

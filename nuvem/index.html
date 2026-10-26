@@ -216,7 +216,7 @@ function fmt(c){if(c==null)return'—';var neg=c<0;c=Math.abs(c);return(neg?'-':
 function toCents(s){var d=String(s==null?'':s).replace(/\D/g,'').slice(0,11);return d?parseInt(d,10):0}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')}
-function emptyDb(){return{v:1,recs:[],metas:[],aportes:[],reg:{},onb:false,prem:Object.assign({},PREM_PADRAO),log:[],prog:[],prio:[]}}
+function emptyDb(){return{v:1,recs:[],metas:[],aportes:[],reg:{},onb:false,prem:Object.assign({},PREM_PADRAO),log:[],prog:[],prio:[],investimentos:[]}}
 function sum(a){return a.reduce(function(s,r){return s+r.v},0)}
 function catLabel(k){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===k)return CATS[i][1];return'Outros'}
 function catIcon(k){for(var i=0;i<CATS.length;i++)if(CATS[i][0]===k)return CATS[i][2];return'•'}
@@ -477,7 +477,7 @@ function sanitize(o){
   var fr=o.fxRef&&typeof o.fxRef==='object'?o.fxRef:{};
   var fxRef={ocultos:Array.isArray(fr.ocultos)?fr.ocultos.filter(function(x){return typeof x==='string'&&x.length<=20}).slice(0,30):[],extras:Array.isArray(fr.extras)?fr.extras.filter(function(x){return x&&typeof x.k==='string'&&/^[\w-]{1,20}$/.test(x.k)&&typeof x.nome==='string'&&x.nome.trim()}).map(function(x){return{k:x.k,ic:String(x.ic||'⭐').slice(0,8),nome:x.nome.trim().slice(0,30),cat:typeof x.cat==='string'?x.cat:'casa'}}).slice(0,20):[]};
   var bk=typeof o.bk==='string'&&re.test(o.bk)?o.bk:null,bkAdiar=typeof o.bkAdiar==='string'&&re.test(o.bkAdiar)?o.bkAdiar:null;
-  return{v:1,recs:recs,metas:metas,aportes:aportes,reg:reg,onb:!!o.onb,prem:prem,log:log,bk:bk,bkAdiar:bkAdiar,saldo:saldo,saldoTs:saldoTs,prog:prog,fxRef:fxRef,prio:prio};
+  return{v:1,recs:recs,metas:metas,aportes:aportes,reg:reg,onb:!!o.onb,prem:prem,log:log,bk:bk,bkAdiar:bkAdiar,saldo:saldo,saldoTs:saldoTs,prog:prog,fxRef:fxRef,prio:prio,investimentos:Array.isArray(o.investimentos)?o.investimentos.filter(function(x){return x&&typeof x.id==='string'&&typeof x.institution==='string'&&Number.isFinite(x.amount)&&x.amount>=0&&Number.isFinite(x.percent)&&x.percent>=0&&x.percent<=1000&&(x.kind==='cdb'||x.kind==='lci')}).map(function(x){return{id:x.id,institution:x.institution.slice(0,90),amount:x.amount,percent:x.percent,kind:x.kind,investedAt:String(x.investedAt||'').slice(0,10),maturity:String(x.maturity||'').slice(0,10),liquidity:String(x.liquidity||'').slice(0,90)}}).slice(0,200):[]};
 }
 
 /* ===== Planos (leme), cenários (motor) e ações do assistente ===== */
@@ -1373,10 +1373,10 @@ function render(){
   if(ensureRecurring(db,today))save();
   if(!mesSel)mesSel=monthOf(today);
   var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
-  var title={extrato:'Extrato',painel:'Resumo do mês',contas:'Contas',metas:'Seus planos'};
-  var body=view==='hoje'?vHoje(today):'<h1 class="page-heading">'+title[view]+'</h1>'+(view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):vMetas(today));
+  var title={extrato:'Extrato',painel:'Resumo do mês',contas:'Contas',metas:'Seus planos',investimentos:'Investimentos'};
+  var body=view==='hoje'?vHoje(today):'<h1 class="page-heading">'+title[view]+'</h1>'+(view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):view==='investimentos'?'<iframe title="Investimentos Atlas" src="investimentos.html?integrado=1" style="width:100%;height:calc(100dvh - 165px);min-height:570px;border:0;border-radius:18px;background:#f4f7fb"></iframe>':vMetas(today));
   if(view==='hoje')body+='<section class="card" aria-label="Investimentos"><h3>🌱 Fazer crescer</h3><p class="muted">Simule aplicações, compare percentuais do CDI e acompanhe seus investimentos.</p><a class="btn pri" href="investimentos.html" style="display:inline-block;text-decoration:none;text-align:center;margin-top:8px">Explorar investimentos →</a></section>';
-  var nav='<nav aria-label="Navegação principal"><div class="in">'+[['hoje','house','Início'],['extrato','journal-text','Extrato'],['contas','calendar2-check','Contas'],['metas','bullseye','Planos']].map(navBtn).join('')+'</div></nav>';
+  var nav='<nav aria-label="Navegação principal"><div class="in">'+[['hoje','house','Início'],['extrato','journal-text','Extrato'],['contas','calendar2-check','Contas'],['metas','bullseye','Planos'],['investimentos','trending-up','Investir']].map(navBtn).join('')+'</div></nav>';
   $('#app').innerHTML=top+'<main id="conteudo">'+body+'</main>'+nav;
 }
 function navBtn(a){return'<button type="button" data-act="nav" data-v="'+a[0]+'"'+(view===a[0]?' aria-current="page"':'')+' class="'+(view===a[0]?'on':'')+'">'+uiIcon(a[1])+'<span>'+a[2]+'</span></button>'}
@@ -2149,6 +2149,7 @@ function voz(){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet();if(e.key==='Enter'&&e.target.id==='qt'){e.preventDefault();saveAdd()}if(e.key==='Enter'&&e.target.id==='ac'){e.preventDefault();aEnviar(false)}});
 
 /* Porta de entrada para o Atlas assistente (ver docs/ASSISTENTE-ACOES.md) */
+window.AtlasInvestBridge={get:function(){return JSON.parse(JSON.stringify(db.investimentos||[]))},save:function(arr){if(!Array.isArray(arr)||arr.length>200)return false;db.investimentos=arr;save();return true},loggedIn:function(){return nvLogado()}};
 window.AtlasFin={
   ferramentas:FERRAMENTAS,
   interpretar:function(texto){return interpretar(db,todayStr(),texto)},

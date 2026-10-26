@@ -1375,6 +1375,7 @@ function render(){
   var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
   var title={extrato:'Extrato',painel:'Resumo do mês',contas:'Contas',metas:'Seus planos'};
   var body=view==='hoje'?vHoje(today):'<h1 class="page-heading">'+title[view]+'</h1>'+(view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):vMetas(today));
+  if(view==='hoje')body+='<section class="card" aria-label="Investimentos"><h3>🌱 Fazer crescer</h3><p class="muted">Simule aplicações, compare percentuais do CDI e acompanhe seus investimentos.</p><a class="btn pri" href="investimentos.html" style="display:inline-block;text-decoration:none;text-align:center;margin-top:8px">Explorar investimentos →</a></section>';
   var nav='<nav aria-label="Navegação principal"><div class="in">'+[['hoje','house','Início'],['extrato','journal-text','Extrato'],['contas','calendar2-check','Contas'],['metas','bullseye','Planos']].map(navBtn).join('')+'</div></nav>';
   $('#app').innerHTML=top+'<main id="conteudo">'+body+'</main>'+nav;
 }

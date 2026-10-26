@@ -48,7 +48,7 @@ num rollback sem antes preservar e migrar os novos campos.
 ## Validação
 
 Comandos locais: node tests/investimentos.test.cjs e node tests/pagamentos.test.cjs.
-19 testes de regressão e 13 novos cenários de cálculos, quinzenas, recargas,
+19 testes de regressão e 14 novos cenários de cálculos, quinzenas, recargas,
 parcelamento, saldo, caixa, planos e roundtrip. O teste navegador inclui os mesmos
 formulários reais e dois contextos isolados, com backend REST em memória.
 Resultados de execução no GitHub Actions devem ser conferidos antes da publicação.
@@ -61,3 +61,25 @@ plano e comparar o saldo após sincronizar o segundo aparelho.
 O primeiro navegador passou todos os formulários de carteira e a recarga no segundo contexto. Parou depois em timeout do BCB real; a interface manteve a taxa manual. O teste separa agora o contrato positivo (payload de teste) da disponibilidade externa: tenta o BCB real no máximo duas vezes e registra EXTERNAL UNAVAILABLE se não responder, exigindo que a taxa anterior permaneça. Esse registro não equivale a aprovação da consulta real naquele horário.
 
 A proteção contra clientes antigos foi aplicada no Supabase e testada em tabela temporária: cliente antigo bloqueado, cliente novo aceito e conta legada sem carteira aceita. Nenhum documento financeiro de usuário foi modificado pelo teste.
+
+## Resultado final e liberação para testes
+
+Commit de código validado: 28955f865273170b4d9ecd4888407804122efbb1.
+Execução aprovada: https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40409646298
+Foram aprovados 19 testes de regressão e 14 da carteira (33 no total). O navegador
+passou os formulários, duas sessões com REST simulado, 320/360/390 px, recarga,
+fatura sem duplicação, planos, consulta real do BCB (com CORS), fallback e PWA offline.
+Capturas de tela e relatório ficam no artefato homologacao-investimentos.
+
+Migração aplicada pelo Supabase: 20261026220050_proteger_carteira_clientes_legados.
+Teste temporário também sob papel authenticated aprovou cliente novo e bloqueou
+cliente antigo sem pgSchema. Os avisos do advisor permaneceram iguais aos anteriores.
+Nenhum documento financeiro real foi escrito nos testes de migração.
+
+Depois da publicação, feche as abas/app antigos e reabra o endereço habitual. Cadastre
+os saldos atuais uma vez; só confirme renda/recarga ainda não incluída nesses saldos.
+Para desfazer a escolha de soma bancária, desative-a na Carteira; o saldo geral anterior
+continua salvo. Não reverta para cliente que desconheça os campos da carteira: o gatilho
+impede a perda dos cadastros. Corrija o código mantendo o sanitizador atualizado.
+A sincronização automatizada usou API simulada; a conferência final dos saldos reais
+entre os celulares continua sendo parte da homologação pelo usuário.

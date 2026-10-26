@@ -24,6 +24,7 @@ jobs:
       - name: Interface, sincronização simulada, PWA e CDI oficial
         env:
           LIVE_CDI: '1'
+          PUBLIC_SITE: 'https://atlas-solucoes.github.io/atlas-financas-app/nuvem/'
         run: python tests/browser_investimentos.py
       - uses: actions/upload-artifact@v4
         if: always()

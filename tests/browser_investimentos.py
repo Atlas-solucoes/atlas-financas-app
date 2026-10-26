@@ -130,6 +130,18 @@ def run():
             contexts[0].set_offline(False)
             assert not errors, errors
             evidence.append('PASS: zero exceções JavaScript não tratadas')
+            if os.environ.get('PUBLIC_SITE'):
+                published = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True)
+                contexts.append(published)
+                # Perfil novo, sem login; bloquear Supabase impede qualquer acesso a contas reais.
+                published.route('https://*.supabase.co/**', lambda route: route.abort())
+                live = published.new_page()
+                live.goto(os.environ['PUBLIC_SITE'], wait_until='domcontentloaded')
+                assert 'Atlas' in live.title()
+                assert live.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                live.screenshot(path=str(ARTIFACTS / 'pagina-publicada-mobile.png'), full_page=True)
+                evidence.append('PASS: endereço publicado responde e cabe em 390 px; perfil novo sem acesso ao Supabase real')
+
         finally:
             for ctx in contexts:
                 ctx.close()

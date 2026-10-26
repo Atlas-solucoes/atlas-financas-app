@@ -126,3 +126,28 @@ as verificações de navegador aprovadas antes da conclusão da execução.
 
 O teste em celulares físicos e a sincronização autenticada real com duas sessões
 continuam pendentes. As contas existentes não foram acessadas nem modificadas.
+
+## Resultado de navegador confirmado
+
+Execução de push 40381209049 concluiu com sucesso no commit 7b916fbbc5b0e838c09e2d327f2b524aac69ca31:
+https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40381209049
+
+Evidências extraídas dos logs em RESULTADO-BROWSER-INVESTIMENTOS.json:
+- fluxo UI/iframe/bridge/REST simulado/segundo navegador/recarga preservou lançamento;
+- ausência de rolagem horizontal em 320, 360 e 390 px;
+- consulta real ao BCB pelo Chromium passou, incluindo CORS e data de referência;
+- resposta de erro da API preservou a taxa existente;
+- app e tela de investimentos abriram offline com service worker;
+- nenhuma exceção JavaScript não tratada nos cenários executados.
+
+O artefato homologacao-investimentos contém relatório e captura da tela.
+A instalação em celular físico, Safari/iOS e sincronização autenticada real seguem
+pendentes: a simulação não comprova esses cenários. Foi adicionado ao workflow um
+smoke test separado do endereço público informado, em perfil novo sem login e com
+Supabase bloqueado, para verificar a página em uso sem acessar dados existentes.
+Não confundir esse smoke test da main publicada com os testes da feature local no runner.
+
+A revisão somente leitura das sete funções privilegiadas confirmou search_path
+vazio e predicados de autenticação/propriedade ou destinatário nos corpos analisados.
+Os avisos do advisor são motivo de revisão, não evidência isolada de vazamento.
+Nenhuma política ou função foi alterada nesta entrega.

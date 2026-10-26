@@ -1036,40 +1036,44 @@ function nvMsg(j){
   if(c==='email_address_invalid'||c==='validation_failed')return'Confira o e-mail e a senha (8 caracteres ou mais) e tente de novo.';
   return m||'Não deu certo. Tente de novo.';
 }
-function nvReq(path,opt,semAuth){
-  opt=opt||{};var h={apikey:NV_KEY,'Content-Type':'application/json'};if(!semAuth&&N.tok)h.Authorization='Bearer '+N.tok;else h.Authorization='Bearer '+NV_KEY;
+function nvReq(path,opt,semAuth,session){
+  var actor=session||N;opt=opt||{};var h={apikey:NV_KEY,'Content-Type':'application/json'};if(!semAuth&&actor.tok)h.Authorization='Bearer '+actor.tok;else h.Authorization='Bearer '+NV_KEY;
   if(opt.prefer)h.Prefer=opt.prefer;
   return fetch(NV_URL+path,{method:opt.method||'GET',headers:h,body:opt.body?JSON.stringify(opt.body):undefined}).then(function(r){return r.text().then(function(t){var j=null;try{j=t?JSON.parse(t):null}catch(e){}return{ok:r.ok,status:r.status,j:j}})});
 }
 function nvSessao(j){N.tok=j.access_token;N.ref=j.refresh_token;N.exp=Date.now()+((j.expires_in||3600)-60)*1000;N.uid=j.user&&j.user.id||N.uid;N.email=j.user&&j.user.email||N.email;nvStore()}
 function nvRenovar(){
-  if(!N.ref)return Promise.resolve(false);
-  return nvReq('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:N.ref}},true).then(function(r){if(r.ok&&r.j&&r.j.access_token){nvSessao(r.j);return true}if(r.status>=400&&r.status<500){N={};nvStore()}return false}).catch(function(){return false});
+  var session=N;if(!session.ref)return Promise.resolve(false);
+  return nvReq('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token:session.ref}},true,session).then(function(r){if(session!==N)return false;if(r.ok&&r.j&&r.j.access_token){nvSessao(r.j);return true}if(r.status>=400&&r.status<500){nvSair()}return false}).catch(function(){return false});
 }
 function nvApi(path,opt){
-  var pre=(N.exp&&Date.now()>N.exp)?nvRenovar():Promise.resolve(true);
-  return pre.then(function(){return nvReq(path,opt)}).then(function(r){if(r.status===401)return nvRenovar().then(function(ok){return ok?nvReq(path,opt):r});return r});
+  var session=N;function current(){if(session!==N)throw Error('Sessão alterada durante a operação.')}
+  var pre=(session.exp&&Date.now()>session.exp)?nvRenovar():Promise.resolve(true);
+  return pre.then(function(){current();return nvReq(path,opt,false,session)}).then(function(r){current();if(r.status===401)return nvRenovar().then(function(ok){current();return ok?nvReq(path,opt,false,session):r});return r}).then(function(r){current();return r});
 }
 function nvEntrar(email,senha,criar){
   return nvReq(criar?'/auth/v1/signup':'/auth/v1/token?grant_type=password',{method:'POST',body:{email:email,password:senha}},true).then(function(r){
     if(!r.ok)return{erro:nvMsg(r.j)};
     if(!r.j||!r.j.access_token)return{erro:'Enviamos um e-mail de confirmação para '+email+'. Toque no link dele e depois volte e toque em Entrar.'};
-    N={};nvSessao(r.j);return{ok:true};
+    clearTimeout(nvT);nvBusy=false;N={};nvSessao(r.j);return{ok:true};
   }).catch(function(){return{erro:'Sem internet. Tente de novo quando estiver online.'}});
 }
-function nvSair(){N={};nvStore();if(typeof pjReset==='function')pjReset()}
+function nvSair(){clearTimeout(nvT);nvBusy=false;N={};nvStore();if(typeof pjReset==='function')pjReset()}
 function nvDocLocal(){return JSON.parse(JSON.stringify(db))}
-function nvVazio(d){return !['recs','metas','aportes','prog','prio','investimentos','log'].some(function(k){return Array.isArray(d[k])&&d[k].length})&&!Object.keys(d.reg||{}).length&&!(d.saldo)&&!d.onb}
+function nvVazio(d){return !['recs','metas','aportes','prog','prio','investimentos','log'].some(function(k){return Array.isArray(d[k])&&d[k].length})&&!Object.keys(d.reg||{}).length&&d.saldo==null&&!d.onb&&!(d.fxRef&&(d.fxRef.extras||[]).length)&&!(d.fxRef&&(d.fxRef.ocultos||[]).length)}
 function nvAplicar(doc,rev){
-  try{localStorage.setItem(KEY+'-antes-nuvem',JSON.stringify(db))}catch(e){}
-  var v=sanitize(doc);if(!v)return false;db=v;nvMute=true;save();nvMute=false;N.rev=rev;N.dirty=false;N.ok=Date.now();nvStore();return true;
+  var v=sanitize(doc);if(!v)throw Error('Documento da nuvem inválido.');
+  try{localStorage.setItem(KEY+'-antes-nuvem',JSON.stringify(db))}catch(e){throw Error('Não foi possível guardar a cópia de segurança local.')}
+  var previous=db;db=v;nvMute=true;var stored=false;try{stored=save()}finally{nvMute=false;if(!stored)db=previous}
+  if(!stored)throw Error('Não foi possível salvar os dados da nuvem neste aparelho.');
+  N.rev=rev;N.dirty=false;N.ok=Date.now();nvStore();return true;
 }
 function nvEstado(e){N.estado=e;nvStore();var el=$('#nvst');if(el)el.outerHTML=nvChip()}
 function nvChip(){if(!nvLogado())return'<span id="nvst"></span>';var e=N.estado||'ok',t=e==='sync'?'⟳ salvando':e==='offline'?'☁ sem internet':e==='conflito'?'☁ ! conflito':N.dirty?'⟳ salvando':'☁ salvo';return'<button id="nvst" style="white-space:nowrap" class="chip'+(e==='ok'&&!N.dirty?' on':'')+'" data-act="nuvem" title="Sincronização">'+t+'</button>'}
 function nvAgendar(){if(!nvLogado()||nvMute)return;N.dirty=true;nvStore();clearTimeout(nvT);nvT=setTimeout(nvSync,1500);var el=$('#nvst');if(el)el.outerHTML=nvChip()}
 /* sincroniza: decide entre enviar, baixar ou perguntar */
 function nvSync(){
-  if(!nvLogado()||nvBusy)return Promise.resolve();nvBusy=true;nvEstado('sync');
+  if(!nvLogado()||nvBusy)return Promise.resolve();var session=N;nvBusy=true;nvEstado('sync');
   return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&select=doc,revision,device,updated_at').then(function(r){
     if(!r.ok)throw r;var row=r.j&&r.j[0];
     if(!row){ // nada na nuvem: sobe o que temos
@@ -1086,7 +1090,7 @@ function nvSync(){
       nvEstado('conflito');nvPerguntar(row);return;
     }
     nvEstado('conflito');nvPerguntar(row);
-  }).catch(function(e){nvEstado(e&&e.status?'conflito':'offline');if(e&&e.status&&e.status!==401)toast('Não consegui sincronizar agora. Seus dados estão salvos neste aparelho.')}).then(function(){nvBusy=false;if(N.dirty&&N.estado==='ok')nvAgendar()});
+  }).catch(function(e){if(session!==N)return;nvEstado(e&&e.status?'conflito':'offline');if(e&&e.status&&e.status!==401)toast('Não consegui sincronizar agora. Seus dados estão salvos neste aparelho.')}).then(function(){if(session!==N)return;nvBusy=false;if(N.dirty&&N.estado==='ok')nvAgendar()});
 }
 function nvEmpurrar(base){
   var sent=nvDocLocal();return nvApi('/rest/v1/app_state?user_id=eq.'+N.uid+'&revision=eq.'+base,{method:'PATCH',prefer:'return=representation',body:{doc:sent,revision:base+1,device:nvDevice()}}).then(function(w){
@@ -1097,15 +1101,15 @@ function nvEmpurrar(base){
 }
 function nvPerguntar(row){
   N.pend={doc:row.doc,rev:row.revision};
-  var q=function(d){return d.recs?d.recs.length+' lançamentos, '+(d.metas||[]).length+' planos':'vazio'};
+  var q=function(d){return(d.recs||[]).length+' lançamentos, '+(d.metas||[]).length+' planos, '+(d.investimentos||[]).length+' investimentos'};
   openSheet('<h2>Dois conjuntos de dados <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Os dados deste aparelho e os da nuvem são diferentes'+(row.device?' (a nuvem foi salva por: '+esc(row.device)+')':'')+'. Escolha qual manter. O outro não é apagado de vez: fica guardado como cópia de segurança neste aparelho.</p>'+
     '<div class="card"><h3>☁ Na nuvem</h3><div class="muted">'+q(row.doc)+'</div><div class="row"><button class="btn pri" data-act="nvnuvem">Usar os da nuvem</button></div></div>'+
     '<div class="card"><h3>📱 Neste aparelho</h3><div class="muted">'+q(db)+'</div><div class="row"><button class="btn" data-act="nvaqui">Usar os deste aparelho</button></div></div>');
 }
 function nvEscolha(nuvem){
   var pe=N.pend;if(!pe){closeSheet();return}
-  if(nuvem){nvAplicar(pe.doc,pe.rev);N.pend=null;nvEstado('ok');closeSheet();render();toast('Pronto: usando os dados da nuvem.')}
-  else{try{localStorage.setItem(KEY+'-nuvem-antes',JSON.stringify(pe.doc))}catch(e){}N.rev=pe.rev;N.pend=null;N.dirty=true;nvStore();closeSheet();nvBusy=false;nvSync().then(function(){render();toast('Pronto: a nuvem agora tem os dados deste aparelho.')})}
+  if(nuvem){try{nvAplicar(pe.doc,pe.rev)}catch(e){toast(e.message);return}N.pend=null;nvEstado('ok');closeSheet();render();toast('Pronto: usando os dados da nuvem.')}
+  else{try{localStorage.setItem(KEY+'-nuvem-antes',JSON.stringify(pe.doc))}catch(e){}N.rev=pe.rev;N.pend=null;N.dirty=true;nvStore();closeSheet();nvBusy=false;nvSync().then(function(){render();if(N.estado==='ok'&&!N.dirty)toast('Pronto: a nuvem agora tem os dados deste aparelho.')})}
 }
 function sNuvem(){
   if(nvLogado()){
@@ -2149,7 +2153,7 @@ function voz(){
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet();if(e.key==='Enter'&&e.target.id==='qt'){e.preventDefault();saveAdd()}if(e.key==='Enter'&&e.target.id==='ac'){e.preventDefault();aEnviar(false)}});
 
 /* Porta de entrada para o Atlas assistente (ver docs/ASSISTENTE-ACOES.md) */
-window.AtlasInvestBridge={get:function(){return JSON.parse(JSON.stringify(db.investimentos||[]))},save:function(arr){if(!Array.isArray(arr)||arr.length>200)return false;var candidate=sanitize(Object.assign({},db,{investimentos:arr}));if(!candidate||candidate.investimentos.length!==arr.length)return false;var previous=db.investimentos;db.investimentos=candidate.investimentos;if(!save()){db.investimentos=previous;return false}return true},loggedIn:function(){return nvLogado()}};
+window.AtlasInvestBridge={get:function(){return JSON.parse(JSON.stringify(db.investimentos||[]))},save:function(arr){if(!Array.isArray(arr)||arr.length>200)return false;var candidate=sanitize({v:1,recs:[],metas:[],investimentos:arr});if(!candidate||candidate.investimentos.length!==arr.length)return false;var previous=db.investimentos;db.investimentos=candidate.investimentos;if(!save()){db.investimentos=previous;return false}return true},loggedIn:function(){return nvLogado()}};
 window.AtlasFin={
   ferramentas:FERRAMENTAS,
   interpretar:function(texto){return interpretar(db,todayStr(),texto)},

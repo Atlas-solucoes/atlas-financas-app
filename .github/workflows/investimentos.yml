@@ -1,0 +1,33 @@
+name: Homologação de investimentos
+on:
+  push:
+    branches: [feature/investimentos-cdi-comparador]
+  pull_request:
+    paths: ['nuvem/**', 'tests/**', '.github/workflows/investimentos.yml']
+permissions:
+  contents: read
+jobs:
+  investimentos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tests/investimentos.test.cjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright==1.62.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Interface, sincronização simulada, PWA e CDI oficial
+        env:
+          LIVE_CDI: '1'
+        run: python tests/browser_investimentos.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: homologacao-investimentos
+          path: test-results/
+          if-no-files-found: warn

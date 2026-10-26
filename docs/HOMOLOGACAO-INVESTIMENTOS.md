@@ -32,7 +32,7 @@ liberação. Nenhuma afirmação de conformidade fiscal foi validada externament
 ## Evidências executadas
 
 Comando: `node tests/investimentos.test.cjs` (Node v24.19.0).
-Resultado: 10 testes aprovados, zero falhas; saída em TESTES-INVESTIMENTOS.txt.
+Resultado: 19 testes aprovados, zero falhas; saída em TESTES-INVESTIMENTOS.txt.
 Inclui compilação dos scripts HTML, cálculo anual, isenção, aporte no último mês,
 taxa zero, limites de IR/IOF, documento com investimentos, edição durante PATCH,
 rollback da bridge e isolamento de caches do service worker.
@@ -82,3 +82,47 @@ navegador/celular nem autenticar duas contas de teste pela aplicação.
 Rollback: reverter o commit de código na branch/preview e incrementar a versão do
 cache em uma entrega corretiva. Não restaurar documento antigo sobre dados recentes
 sem comparar/exportar primeiro. Este conjunto de mudanças não altera schema.
+
+
+## Continuação após informar o endereço de testes
+
+Endereço em uso pela família: https://atlas-solucoes.github.io/atlas-financas-app/nuvem/.
+Não é um ambiente novo: o trabalho preserva essa instalação. A última execução
+Pages observada foi 40260005179, concluída com sucesso a partir da main,
+commit 29943ee734bc9ad9da4d4cefb2e15f5c5a3fafa9. Portanto, a branch de investimentos
+não está publicada nesse endereço. Não alterar a fonte de publicação sem validar
+os bloqueios e preservar o armazenamento usado nos testes existentes.
+
+Acesso público alternativo confirmou resposta do BCB em 26/10/2026:
+SGS 4389 retornou [{"data":"23/10/2026","valor":"13.65"}]. Isso valida o endpoint e
+a interpretação do payload; não comprova CORS no celular. Não há taxa fixa de
+13,65% no código: a aplicação consulta a última observação disponível.
+Fonte: https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json
+
+Referências oficiais consultadas para a revisão tributária:
+- https://www.tesourodireto.com.br/sobre-o-tesouro/regras-e-regulamento
+- https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda/preenchimento/manual-mir/rendimentos/rendimentos-do-capital
+
+O modelo conserva a tabela regressiva e a hipótese PF indicada na interface.
+Continua sendo uma projeção mensal aproximada, e não cálculo fiscal de resgate.
+A consulta adicional de pg_class confirmou RLS habilitada em app_state; a chave
+primária user_id e as restrições de objeto JSON/tamanho/revisão positiva estão presentes.
+
+Correções adicionais: requisições REST e refresh rejeitam respostas de sessão antiga;
+logout cancela agendamento; download da nuvem exige backup local e persistência
+bem-sucedidos antes de confirmar revisão; saldo zero não é considerado vazio;
+bridge sanitiza somente investimentos, preservando os demais registros sem mutação.
+
+A suíte local agora cobre 19 cenários, incluindo dois dispositivos simulados,
+conflito simultâneo, troca de conta/refresh, falha de quota e sanitizador real.
+Não utiliza contas nem tokens reais. A execução local de Chromium falhou por
+restrição do sandbox (setsockopt: Operation not permitted), não por erro do app.
+Foi preparado tests/browser_investimentos.py e um workflow somente de testes,
+sem deploy ou acesso a segredos: abre dois contextos Chromium móveis, intercepta
+todas as chamadas Supabase com servidor em memória, verifica reload, preservação
+de lançamentos, 320/360/390 px, consulta BCB real e falha, e PWA offline.
+Resultados desse workflow devem ser conferidos no GitHub Actions; não considerar
+as verificações de navegador aprovadas antes da conclusão da execução.
+
+O teste em celulares físicos e a sincronização autenticada real com duas sessões
+continuam pendentes. As contas existentes não foram acessadas nem modificadas.

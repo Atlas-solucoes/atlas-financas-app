@@ -269,11 +269,11 @@ def exercise_documents(a, b, backend, artifacts):
     if os.environ.get('LIVE_OCR')=='1':
         new();a.locator('#ad-file').set_input_files(sample)
         expect(a.locator('#ad-canvas')).to_be_visible()
-        a.evaluate("window.testOriginalCreateWorker=Tesseract.createWorker;Tesseract.createWorker=()=>{window.testOcrInitHeld=true;return new Promise(()=>{})}")
+        a.evaluate("() => {window.testOriginalCreateWorker=Tesseract.createWorker;Tesseract.createWorker=()=>{window.testOcrInitHeld=true;return new Promise(()=>{})}}")
         a.locator('[data-doc="read"]').click()
         a.wait_for_function('window.testOcrInitHeld === true')
         a.locator('#sheet [data-act="close"]').click()
-        a.evaluate('Tesseract.createWorker=window.testOriginalCreateWorker')
+        a.evaluate('() => {Tesseract.createWorker=window.testOriginalCreateWorker}')
         listing()
         expect(a.locator('#ad-fscope')).to_be_visible()
     # Cabeçalhos já recebidos não autorizam aplicar corpo antigo após logout.

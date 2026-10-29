@@ -170,6 +170,11 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 .sheet .pn{max-width:560px;max-height:92dvh;padding:22px 20px calc(22px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;overscroll-behavior:contain}
 .sheet .pn h2{font-size:1.25rem}.sheet .pn .row{gap:10px}
 .row>.btn{min-width:100px}.kpis>div{min-width:0}.kpis b,.leg b{overflow-wrap:anywhere;white-space:normal}.leg{flex-wrap:wrap}
+/* Controles de documentos e empresas: áreas de toque e espaço para rótulos. */
+#ad-root .row{gap:12px;margin-top:16px;margin-bottom:16px;align-items:stretch}
+#ad-root .row>.btn{flex:1 1 180px;min-width:0;min-height:48px;padding:14px 16px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+#ad-root .card{margin-top:16px}#ad-company-group[hidden]{display:none}
+@media(max-width:420px){#ad-root .row>.btn{flex-basis:100%}}
 nav{z-index:10;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:#fff}
 nav .in{max-width:560px;grid-template-columns:repeat(auto-fit,minmax(min(100%,4.3em),1fr));align-items:stretch}
 nav button{position:relative;display:flex;align-items:center;justify-content:center;gap:5px;flex-direction:column;padding:8px 2px;font-size:.8125rem;min-height:60px;border-radius:12px}
@@ -1441,7 +1446,7 @@ function vHoje(today){
   if(proxima)h+='<section class="home-note'+(proxima.data<today?' late':'')+'"><div class="note-head">'+uiIcon('calendar2-check')+'<div><b>'+(proxima.data<today?'Conta pendente: ':'Próxima conta: ')+esc(proxima.desc||catLabel(proxima.cat))+'</b><p>'+fmt0d(proxima.data)+' · '+fmt(proxima.v)+(proxima.data<today?' · Em atraso':'')+'</p></div><button type="button" class="text-action" data-act="pagar" data-id="'+esc(proxima.id)+'" aria-label="Ver conta '+esc(proxima.desc||catLabel(proxima.cat))+'">Ver '+uiIcon('chevron-right')+'</button></div></section>';
   var ms=db.metas.filter(function(m){return!m.feita}),m=ms[0];
   h+='<section class="home-plan"><div class="section-heading"><h2>Meus planos</h2><button type="button" class="text-action" data-act="nav" data-v="metas">Ver planos '+uiIcon('chevron-right')+'</button></div>'+(m?metaMini(m,today)+'<button type="button" class="text-action" data-act="det" data-id="'+esc(m.id)+'">Acompanhar meu plano '+uiIcon('chevron-right')+'</button>':'<p class="home-empty">Uma compra, uma viagem ou uma reserva: comece pelo que importa para você.</p><button type="button" class="text-action" data-act="novameta">Criar meu primeiro plano '+uiIcon('chevron-right')+'</button>')+'</section>';
-  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('documentos','journal-text','Documentos e reembolsos')+uiTool('pg-carteira','wallet2','Bancos, cartões e benefícios')+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
+  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('documentos','journal-text','Documentos e reembolsos')+uiTool('empresas','journal-text','Minhas empresas / dados para nota fiscal')+uiTool('pg-carteira','wallet2','Bancos, cartões e benefícios')+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
   if(!db.reg[today])h+='<button type="button" class="text-action" data-act="nada">Hoje eu não gastei nada</button>';
   h+='<details class="home-more"><summary>Ver próximos recebimentos e pagamentos</summary>'+vCenarioCard(today)+'</details>';
   if(bkPrecisa(db,today))h+='<section class="home-note"><b>Guarde uma cópia dos seus dados</b><p class="home-empty">Faça um backup para recuperar seus registros se trocar de aparelho.</p><button type="button" class="text-action" data-act="gear">Fazer backup</button><button type="button" class="text-action" data-act="bkdepois">Lembrar em 3 dias</button></section>';
@@ -2176,7 +2181,7 @@ document.addEventListener('click',function(e){
     case'pjdest':qf.dest=el.getAttribute('data-u');el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;
     case'pjcusto':sPjCusto(id);break;case'pjctipo':qf.ct=el.getAttribute('data-k');$('#cvl').textContent=qf.ct==='fixo'?'Valor por mês':'Valor médio estimado (você confirma o real a cada pagamento)';el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.toggle('on',c===el)});break;case'pjcustosave':pjCustoSalvar();break;
     case'pjpagar':{var cu=PJ.custos.filter(function(x){return x.id===id})[0];if(cu)sPjLanc(cu.projeto_id,'despesa',cu);break}
-    case'pjcustodel':{nvApi('/rest/v1/projeto_custos?id=eq.'+id,{method:'DELETE'}).then(function(r){if(!r.ok)return toast('Não deu certo.');pjCarregar().then(function(){var pd=PJ.lista&&PJ.lista[0];toast('Custo removido.')})});break}case'nventrar':nvForm(false);break;case'nvcriar':nvForm(true);break;case'nvagora':nvBusy=false;nvSync().then(function(){sNuvem()});break;case'nvsair':nvSair();closeSheet();render();toast('Você saiu. Seus dados continuam neste aparelho.');break;case'nvnuvem':nvEscolha(true);break;case'nvaqui':nvEscolha(false);break;
+    case'empresas':AtlasDocs.companies();break;case'pjcustodel':{nvApi('/rest/v1/projeto_custos?id=eq.'+id,{method:'DELETE'}).then(function(r){if(!r.ok)return toast('Não deu certo.');pjCarregar().then(function(){var pd=PJ.lista&&PJ.lista[0];toast('Custo removido.')})});break}case'nventrar':nvForm(false);break;case'nvcriar':nvForm(true);break;case'nvagora':nvBusy=false;nvSync().then(function(){sNuvem()});break;case'nvsair':nvSair();closeSheet();render();toast('Você saiu. Seus dados continuam neste aparelho.');break;case'nvnuvem':nvEscolha(true);break;case'nvaqui':nvEscolha(false);break;
     case'novaconta':FXED=false;sFixas();break;case'saveconta':saveConta();break;
     case'fxitem':sFixaItem(el.getAttribute('data-k'));break;
     case'fxedtoggle':FXED=!FXED;sFixas();break;

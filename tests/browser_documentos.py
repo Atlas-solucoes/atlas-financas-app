@@ -14,8 +14,9 @@ UID='00000000-0000-4000-8000-000000000001'
 
 class DocsBackend:
     def __init__(self):
-        self.cases={};self.docs={};self.objects={};self.uploads=0
+        self.companies={};self.cases={};self.docs={};self.objects={};self.uploads=0
     def install(self, context):
+        context.route('**/rest/v1/atlas_companies*', self.companies_route)
         context.route('**/rest/v1/atlas_expense_cases*', self.cases_route)
         context.route('**/rest/v1/atlas_documents*', self.docs_route)
         context.route('**/storage/v1/**', self.storage_route)
@@ -44,6 +45,22 @@ class DocsBackend:
                     elif op.startswith('ilike.'):include &= op[6:].strip('*').lower() in value.lower()
             if include:result.append(copy.deepcopy(row))
         return result
+    def companies_route(self, route):
+        if not self.allowed(route):return
+        req=route.request;q=parse_qs(urlparse(req.url).query)
+        if req.method=='GET':self.response(route,self.filtered(self.companies.values(),q));return
+        body=self.body(route)
+        if req.method=='POST':
+            assert body['user_id']==UID
+            if any(c['cnpj']==body['cnpj'] for c in self.companies.values()):
+                self.response(route,{'code':'23505'},409);return
+            row={**body,'archived':False,'revision':1};self.companies[row['id']]=row;self.response(route,[row]);return
+        if req.method=='PATCH':
+            rows=self.filtered(self.companies.values(),q)
+            for row in rows:
+                row.update(body);row['revision']+=1;self.companies[row['id']]=row
+            self.response(route,rows);return
+        raise AssertionError(req.method)
     def cases_route(self, route):
         if not self.allowed(route):return
         req=route.request;q=parse_qs(urlparse(req.url).query)
@@ -122,11 +139,33 @@ def exercise_documents(a, b, backend, artifacts):
     a.on('dialog',lambda dialog:dialog.accept())
     a.context.add_init_script("Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async(data)=>{window.testShared={names:data.files.map(f=>f.name),text:data.text};}})")
     a.evaluate("Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async(data)=>{window.testShared={names:data.files.map(f=>f.name),text:data.text};}})")
+    # Cadastro fiscal privado e lista sincronizada no segundo contexto.
+    a.locator('nav [data-v="hoje"]').click()
+    a.locator('[data-act="empresas"]').click()
+    expect(a.locator('[data-doc="company-new"]')).to_be_visible()
+    a.locator('[data-doc="company-new"]').click()
+    a.locator('#ad-co-name').fill('Empresa Teste')
+    a.locator('#ad-co-cnpj').fill('04.252.011/0001-11')
+    a.locator('[data-doc="company-save"]').click()
+    expect(a.locator('#toast')).to_contain_text('Confira o CNPJ')
+    assert len(backend.companies)==0
+    a.locator('#ad-co-cnpj').fill('04.252.011/0001-10')
+    a.locator('#ad-co-ie').fill('ISENTO')
+    a.locator('[data-doc="company-save"]').click()
+    expect(a.locator('#ad-status')).to_contain_text('Empresa salva')
+    company_id=next(iter(backend.companies))
+    b.evaluate('closeSheet()');b.locator('nav [data-v="hoje"]').click();b.locator('[data-act="empresas"]').click()
+    expect(b.locator('#ad-root')).to_contain_text('Empresa Teste')
+    a.locator('[data-doc="company-view"]').click()
+    expect(a.locator('#ad-company-copy')).to_have_value('Razão social: Empresa Teste\\nCNPJ: 04.252.011/0001-10\\nInscrição estadual: ISENTO'.replace('\\n','\n'))
+    a.evaluate("() => {Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.testCompanyCopy=text}}})}")
+    a.locator('[data-doc="company-copy"]').click()
+    a.wait_for_function("window.testCompanyCopy && window.testCompanyCopy.includes('ISENTO')")
     sample=receipt(a);new()
     a.locator('#ad-title').fill('Almoço corporativo')
     a.locator('#ad-amount').fill('8500')
     a.locator('#ad-scope').select_option('corporativo')
-    a.locator('#ad-company').fill('Empresa Teste')
+    expect(a.locator('#ad-company')).to_have_value(company_id)
     a.locator('#ad-reimbursement').select_option('a_solicitar')
     a.locator('#ad-file').set_input_files(sample)
     expect(a.locator('#ad-canvas')).to_be_visible()
@@ -142,6 +181,19 @@ def exercise_documents(a, b, backend, artifacts):
     before=a.evaluate('db.recs.length')
     # Anexar, classificar e reconhecer não alteram saldos ou lançamentos.
     assert a.evaluate('db.recs.length')==before
+    assert backend.cases[cid]['company_id']==company_id
+    # Cadastro inline não descarta a foto selecionada; duas empresas exigem escolha.
+    a.locator('#ad-file').set_input_files(sample)
+    expect(a.locator('#ad-canvas')).to_be_visible()
+    a.locator('[data-doc="companies"]').click()
+    a.locator('[data-doc="company-new"]').click()
+    a.locator('#ad-co-name').fill('Outra Empresa')
+    a.locator('#ad-co-cnpj').fill('12.ABC.345/01DE-35')
+    a.locator('[data-doc="company-save"]').click()
+    expect(a.locator('#ad-status')).to_contain_text('Empresa salva')
+    expect(a.locator('#ad-canvas')).to_be_visible()
+    a.locator('#ad-company').select_option(company_id)
+    a.locator('[data-doc="company-dismiss"]').click()
     a.locator('#ad-file').set_input_files(sample)
     expect(a.locator('#ad-canvas')).to_be_visible()
     a.locator('[data-doc="upload"]').click()
@@ -169,7 +221,7 @@ def exercise_documents(a, b, backend, artifacts):
     a.locator('[data-doc="upload"]').click()
     expect(a.locator('#ad-status')).to_contain_text('Arquivo anexado')
     assert len(backend.docs)==3
-    listing();a.locator('#ad-fscope').select_option('corporativo');a.locator('#ad-fcompany').fill('Empresa Teste');a.locator('#ad-fstatus').select_option('a_solicitar');a.locator('[data-doc="filter"]').click()
+    listing();a.locator('#ad-fscope').select_option('corporativo');a.locator('#ad-fcompany').select_option('Empresa Teste');a.locator('#ad-fstatus').select_option('a_solicitar');a.locator('[data-doc="filter"]').click()
     expect(a.locator('#ad-root')).not_to_contain_text('Despesa pessoal de teste')
     a.locator(f'[data-doc-check="{cid}"]').check()
     a.locator('[data-doc="prepare-share"]').click()
@@ -259,11 +311,18 @@ def exercise_documents(a, b, backend, artifacts):
         assert a.evaluate("db.recs.filter(r=>r.pgAbertura).length")==1
         assert a.evaluate("(card)=>pgFaturas(db).find(f=>f.id===card&&f.data==='2026-12-05').total",card)==15000
         a.wait_for_function('!N.dirty && !nvBusy')
+    new()
+    expect(a.locator('#ad-company-group')).to_be_hidden()
+    a.locator('#ad-scope').select_option('corporativo')
+    expect(a.locator('#ad-company')).to_have_value('')
     listing()
     for width in (320,360,390):
         a.set_viewport_size({'width':width,'height':844})
         assert a.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert a.locator('.pn').evaluate('(el)=>el.scrollWidth <= el.clientWidth+1')
+        for button in a.locator('#ad-root .row > .btn').all():
+            box=button.bounding_box();assert box['height']>=48
+            assert box['width']>=width-90
     a.screenshot(path=str(artifacts/'documentos-reembolsos-mobile.png'),full_page=True)
     # Fechar uma leitura cujo worker não iniciou não pode bloquear os documentos.
     if os.environ.get('LIVE_OCR')=='1':
@@ -287,4 +346,4 @@ def exercise_documents(a, b, backend, artifacts):
     a.evaluate('window.fetch=window.testOriginalFetch;N=window.testPreviousSession;nvStore();render()')
     b.evaluate('closeSheet()')
     a.locator('nav [data-v="investimentos"]').click()
-    return 'PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso, saldo anterior de fatura sem duplicação segunda sessão, cancelamento de OCR e corpo atrasado após logout (Storage/REST simulados)'
+    return 'PASS: empresas fiscais, seleção única/múltipla, cadastro inline preserva foto, copiar dados, segundo contexto e botões de 48 px; foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso, saldo anterior de fatura sem duplicação segunda sessão, cancelamento de OCR e corpo atrasado após logout (Storage/REST simulados)'

@@ -1,10 +1,10 @@
 {
-  "date": "2026-10-29T11:08:52.925836+00:00",
+  "date": "2026-10-29T11:17:43.960536+00:00",
   "scope": "Chromium emulado; Supabase simulado, nenhum dado real",
   "results": [
     "PASS: UI → bridge → REST simulado → segundo navegador → recarga; lançamento preservado",
     "PASS: carteira com bancos/VA/VR/crédito, salário em quinzenas, recarga mensal, fatura sem duplicação, planos e reload no segundo contexto",
-    "PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso e segunda sessão (Storage/REST simulados)",
+    "PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso, saldo anterior de fatura sem duplicação e segunda sessão (Storage/REST simulados)",
     "PASS: sem rolagem horizontal em 320/360/390 px (Chromium emulado)",
     "PASS: consulta BCB real pelo navegador, incluindo CORS; BCB/SGS 4389 — CDI anualizado: 13.65% a.a.; referência 27/10/2026. Última observação disponível, não garantia futura.",
     "PASS: contrato BCB positivo com payload de teste identificado (rede simulada)",
@@ -13,17 +13,18 @@
     "PASS: zero exceções JavaScript não tratadas",
     "PASS: endereço publicado responde e cabe em 390 px; perfil novo sem acesso ao Supabase real"
   ],
-  "commit": "ab2256f5806ddd118c7fb052d629272ccd52d75c",
-  "workflow": "https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40862986999",
+  "commit": "c185050c69d8d14eadd5cf72ab92b777684d3fd4",
+  "workflow": "https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40864136653",
   "unit_tests": {
     "investimentos": 19,
     "carteira": 14,
-    "documentos": 12,
+    "documentos": 13,
     "failures": 0
   },
   "backend": {
+    "migration": "20261029110109_documentos_privados_e_reembolsos",
     "bucket_private": true,
     "max_file_bytes": 10485760,
-    "rls": "Testes sintéticos revertidos no banco; acesso próprio permitido, acesso cruzado e transferência bloqueados"
+    "rls": "Dados sintéticos revertidos; acesso próprio permitido, acesso cruzado, transferência, vínculo alheio e duplicação bloqueados; nenhum gasto real modificado."
   }
 }

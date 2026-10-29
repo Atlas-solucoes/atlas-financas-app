@@ -17,8 +17,8 @@ conforme pedido do usuário. Não foi criado outro site, plugin ou serviço de I
 
 ## Evidências
 
-Commit de código ab2256f5806ddd118c7fb052d629272ccd52d75c:
-https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40862986999
+Commit de código c185050c69d8d14eadd5cf72ab92b777684d3fd4:
+https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40864136653
 
 46 testes: 19 investimentos, 14 carteira, 13 documentos, todos aprovados.
 Navegador com 320/360/390 px: fluxo financeiro anterior, foto sintética, OCR real
@@ -85,3 +85,5 @@ continua ativa e não deve ser removida para forçar uma gravação antiga.
 Antes de acessar documentos privados, o cliente exige confirmação da política de cache
 do service worker ativo. Uma versão antiga exige fechar abas/app e reabrir, impedindo
 que um worker legado intercepte e guarde as novas respostas privadas.
+
+Migração registrada pelo Supabase: 20261029110109_documentos_privados_e_reembolsos.

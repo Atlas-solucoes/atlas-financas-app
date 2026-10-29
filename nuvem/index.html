@@ -184,11 +184,15 @@ nav button.on:after{content:'';display:block;width:18px;height:3px;border-radius
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
 
 .rpt{flex-wrap:wrap}.rpt>span{min-width:100px}.pn select{max-width:100%}
+.top-actions{flex-wrap:wrap}.pn pre{white-space:pre-wrap;overflow-wrap:anywhere}.pn canvas{display:block;max-width:100%}.pn input[type=file]{font-size:.9rem}
+#ad-root{overflow-wrap:anywhere}#ad-root button{max-width:100%}
 </style></head>
 <body>
 <div id="app"></div>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="documentos-core.js"></script>
+<script src="documentos.js"></script>
 <script>
 /* Rede de segurança: se algo quebrar ao abrir, mostra o motivo na tela (em vez de página em branco) e oferece limpar o cache do app. */
 (function(){
@@ -222,7 +226,7 @@ function pgSaldo(d,id){var m=pgMeio(d,id);if(!m)return 0;if(m.tipo==='cartao')re
   var v=m.saldo;d.recs.forEach(function(r){var ts=Number.isFinite(r.pts)?r.pts:0;if(r.meioId===id&&r.st==='real'&&!r.est&&ts>m.saldoTs)v+=r.t==='r'?r.v:-r.v;if(m.tipo==='banco'&&r.pgOrigem===id&&r.pgPagoEm&&r.pgPts>m.saldoTs)v-=r.v});return v}
 function pgReservado(d,id){var ym=monthOf(todayStr()),plan=(d.prog||[]).filter(function(x){return x.meioId===id}).reduce(function(s,x){return s+x.v},0);return plan+(d.metas||[]).filter(function(m){var medio=pgMeio(d,id);return m.meioId===id&&(!medio||medio.tipo!=='cartao')}).reduce(function(s,m){var feito=(d.aportes||[]).filter(function(a){return a.plano===m.id&&monthOf(a.data)===ym}).reduce(function(v,a){return v+a.v},0);return s+(m.guardado||0)+(m.feita?0:Math.max(0,(m.mensal||0)-feito))},0)}
 function pgValidar(d,id,t,cat,v,n,ignorar){var m=pgMeio(d,id);if(!id){if(d.pgSomarBancos)return'Escolha a conta ou o meio deste registro.';return null}if(!m||m.arquivado)return'Escolha um meio ativo da carteira.';if(t==='r'&&m.tipo==='cartao')return'Cartão de crédito não recebe renda. Escolha um banco.';if(t==='d'&&m.tipo==='va'&&cat!=='mercado')return'Use o vale-alimentação na categoria Mercado.';if(t==='d'&&m.tipo==='vr'&&cat!=='comida')return'Use o vale-refeição na categoria Comida fora.';if(n>1&&m.tipo!=='cartao')return'Parcelamento é exclusivo do cartão de crédito.';if(t==='d'&&(pgBeneficio(m)||m.tipo==='cartao')){var atual=pgSaldo(d,id)+(ignorar&&ignorar.meioId===id&&ignorar.st==='real'&&!ignorar.pgPagoEm?ignorar.v:0);if(v>atual)return m.tipo==='cartao'?'A compra ultrapassa o limite disponível do cartão.':'Saldo insuficiente neste benefício.'}return null}
-function pgRegistrar(d,o){var n=o.n||1;if(!pgCent(o.v)||o.v<=0||!pgData(o.data)||!Number.isInteger(n)||n<1||n>48||o.v<n)return{erro:'Confira valor, data e parcelas (1 a 48).'};var e=pgValidar(d,o.meioId,o.t,o.cat,o.v,n);if(e)return{erro:e};var m=pgMeio(d,o.meioId),out=[],grupo=uid(),now=Math.max(Date.now(),m?m.saldoTs+1:0);for(var i=0;i<n;i++){var r={id:uid(),t:o.t,v:Math.floor(o.v/n)+(i<o.v%n?1:0),cat:o.cat||'outros',desc:String(o.desc||'').slice(0,60),data:o.data,st:'real',fixa:false,pts:now};if(m)r.meioId=m.id;if(m&&m.tipo==='cartao'){r.pgVenc=pgVencimento(m,o.data,i);r.pgGrupo=grupo;r.pgI=i+1;r.pgN=n}out.push(r)}d.recs.push.apply(d.recs,out);return{recs:out}}
+function pgRegistrar(d,o){var n=o.n||1;if(!pgCent(o.v)||o.v<=0||!pgData(o.data)||!Number.isInteger(n)||n<1||n>48||o.v<n)return{erro:'Confira valor, data e parcelas (1 a 48).'};if(o.anCase&&(d.recs||[]).some(function(r){return(o.anMode==='reembolso'?r.anReembolso:r.anCase)===o.anCase}))return{erro:'Este documento já originou um registro. Sincronize e confira antes de repetir.'};var e=pgValidar(d,o.meioId,o.t,o.cat,o.v,n);if(e)return{erro:e};var m=pgMeio(d,o.meioId),out=[],grupo=uid(),now=Math.max(Date.now(),m?m.saldoTs+1:0);for(var i=0;i<n;i++){var r={id:uid(),t:o.t,v:Math.floor(o.v/n)+(i<o.v%n?1:0),cat:o.cat||'outros',desc:String(o.desc||'').slice(0,60),data:o.data,st:'real',fixa:false,pts:now};if(m)r.meioId=m.id;if(m&&m.tipo==='cartao'){r.pgVenc=pgVencimento(m,o.data,i);r.pgGrupo=grupo;r.pgI=i+1;r.pgN=n}if(o.anCase&&/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(o.anCase)){r.id=(o.anMode==='reembolso'?'reb-':'doc-')+o.anCase+'-'+i;if(o.anMode==='reembolso')r.anReembolso=o.anCase;else r.anCase=o.anCase}out.push(r)}d.recs.push.apply(d.recs,out);return{recs:out}}
 function pgFaturas(d){var by={};d.recs.forEach(function(r){var m=pgMeio(d,r.meioId);if(!m||m.tipo!=='cartao'||r.t!=='d'||r.st!=='real'||r.est||!r.pgVenc)return;var key=m.id+'|'+r.pgVenc,g=by[key]||(by[key]={id:m.id,data:r.pgVenc,nome:m.nome,total:0,aberto:0});g.total+=r.v;if(!r.pgPagoEm)g.aberto+=r.v});return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return a.data.localeCompare(b.data)})}
 function pgPagarFatura(d,id,data,conta,hoje){var b=pgMeio(d,conta),it=d.recs.filter(function(r){return r.meioId===id&&r.pgVenc===data&&r.st==='real'&&!r.est&&!r.pgPagoEm});if(!b||b.tipo!=='banco'||b.arquivado)return'Escolha o banco que pagou a fatura.';if(!it.length)return'Esta fatura já está quitada.';var total=sum(it);if(total>pgSaldo(d,conta))return'O saldo desta conta não cobre a fatura. Confira o saldo antes de pagar.';it.forEach(function(r){r.pgPagoEm=hoje;r.pgPts=Math.max(Date.now(),b.saldoTs+1);r.pgOrigem=conta});return null}
 function pgCaixa(d){if(d._pgCaixa)return d;var out=Object.assign({},d,{_pgCaixa:true});out.recs=d.recs.filter(function(r){return!pgBeneficio(pgMeio(d,r.meioId))}).map(function(r){var m=pgMeio(d,r.meioId);if(!m||m.tipo!=='cartao'||r.t!=='d')return r;return Object.assign({},r,{data:r.pgPagoEm||r.pgVenc||r.data,pts:r.pgPagoEm?r.pgPts:undefined,st:r.pgPagoEm?'real':'prev',fixa:!r.pgPagoEm})});out.metas=d.metas.filter(function(m){return!pgBeneficio(pgMeio(d,m.meioId))});out.aportes=(d.aportes||[]).filter(function(a){var m=d.metas.find(function(x){return x.id===a.plano});return!pgBeneficio(pgMeio(d,a.meioId||(m&&m.meioId)))});out.prog=(d.prog||[]).filter(function(p){return!pgBeneficio(pgMeio(d,p.meioId))}).map(function(p){var m=pgMeio(d,p.meioId);return m&&m.tipo==='cartao'?Object.assign({},p,{data:pgVencimento(m,p.data)}):p});if(d.pgSomarBancos&&(d.meios||[]).some(function(m){return m.tipo==='banco'})){out.saldo=(d.meios||[]).filter(function(m){return m.tipo==='banco'}).reduce(function(s,m){return s+pgSaldo(d,m.id)},0)-out.metas.reduce(function(s,m){return s+(m.guardado||0)},0);out.saldoTs=Date.now()+1}return out}
@@ -1092,7 +1096,7 @@ function nvEntrar(email,senha,criar){
     clearTimeout(nvT);nvBusy=false;N={};nvSessao(r.j);return{ok:true};
   }).catch(function(){return{erro:'Sem internet. Tente de novo quando estiver online.'}});
 }
-function nvSair(){clearTimeout(nvT);nvBusy=false;N={};nvStore();if(typeof pjReset==='function')pjReset()}
+function nvSair(){if(window.AtlasDocs)AtlasDocs.reset();clearTimeout(nvT);nvBusy=false;N={};nvStore();if(typeof pjReset==='function')pjReset()}
 function nvDocLocal(){return JSON.parse(JSON.stringify(db))}
 function nvVazio(d){return !['recs','metas','aportes','prog','prio','investimentos','meios','log'].some(function(k){return Array.isArray(d[k])&&d[k].length})&&!Object.keys(d.reg||{}).length&&d.saldo==null&&!d.onb&&!(d.fxRef&&(d.fxRef.extras||[]).length)&&!(d.fxRef&&(d.fxRef.ocultos||[]).length)}
 function nvAplicar(doc,rev){
@@ -1361,6 +1365,7 @@ function openSheet(html){
   if(i)setTimeout(function(){if(s.contains(i))i.focus()},60);
 }
 function closeSheet(){
+  if(window.AtlasDocs)AtlasDocs.closeUI();
   $('#sheet').hidden=true;$('#sheet').innerHTML='';qf=null;
   $('#app').removeAttribute('inert');$('#app').removeAttribute('aria-hidden');document.body.style.overflow='';
   var target=uiReturnFocus&&uiReturnFocus.isConnected?uiReturnFocus:$('#app button');if(target)target.focus();uiReturnFocus=null;
@@ -1410,7 +1415,7 @@ function render(){
   var today=todayStr();
   if(ensureRecurring(db,today))save();
   if(!mesSel)mesSel=monthOf(today);
-  var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="pg-carteira">'+uiIcon('wallet2')+'<span>Carteira</span></button><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
+  var top='<header class="top"><img class="brand" src="logo-financas.svg" alt="Atlas Finanças" width="180" height="55"><div class="top-actions"><button type="button" class="head-action" data-act="documentos">'+uiIcon('journal-text')+'<span>Documentos</span></button><button type="button" class="head-action" data-act="pg-carteira">'+uiIcon('wallet2')+'<span>Carteira</span></button><button type="button" class="head-action" data-act="gear">'+uiIcon('gear')+'<span>Ajustes</span></button></div></header><div class="status-row">'+nvChip()+'</div>';
   var title={extrato:'Extrato',painel:'Resumo do mês',contas:'Contas',metas:'Seus planos',investimentos:'Investimentos'};
   var body=view==='hoje'?vHoje(today):'<h1 class="page-heading">'+title[view]+'</h1>'+(view==='extrato'?vExtrato(today):view==='painel'?vPainel(today):view==='contas'?vContas(today):view==='investimentos'?'<iframe title="Investimentos Atlas" src="investimentos.html?integrado=1" style="width:100%;height:calc(100dvh - 165px);min-height:570px;border:0;border-radius:18px;background:#f4f7fb"></iframe>':vMetas(today));
   if(view==='hoje')body+='<section class="card" aria-label="Investimentos"><h3>🌱 Fazer crescer</h3><p class="muted">Simule aplicações, compare percentuais do CDI e acompanhe seus investimentos.</p><button type="button" class="btn pri" data-act="nav" data-v="investimentos" style="margin-top:8px">Explorar investimentos →</button></section>';
@@ -1436,7 +1441,7 @@ function vHoje(today){
   if(proxima)h+='<section class="home-note'+(proxima.data<today?' late':'')+'"><div class="note-head">'+uiIcon('calendar2-check')+'<div><b>'+(proxima.data<today?'Conta pendente: ':'Próxima conta: ')+esc(proxima.desc||catLabel(proxima.cat))+'</b><p>'+fmt0d(proxima.data)+' · '+fmt(proxima.v)+(proxima.data<today?' · Em atraso':'')+'</p></div><button type="button" class="text-action" data-act="pagar" data-id="'+esc(proxima.id)+'" aria-label="Ver conta '+esc(proxima.desc||catLabel(proxima.cat))+'">Ver '+uiIcon('chevron-right')+'</button></div></section>';
   var ms=db.metas.filter(function(m){return!m.feita}),m=ms[0];
   h+='<section class="home-plan"><div class="section-heading"><h2>Meus planos</h2><button type="button" class="text-action" data-act="nav" data-v="metas">Ver planos '+uiIcon('chevron-right')+'</button></div>'+(m?metaMini(m,today)+'<button type="button" class="text-action" data-act="det" data-id="'+esc(m.id)+'">Acompanhar meu plano '+uiIcon('chevron-right')+'</button>':'<p class="home-empty">Uma compra, uma viagem ou uma reserva: comece pelo que importa para você.</p><button type="button" class="text-action" data-act="novameta">Criar meu primeiro plano '+uiIcon('chevron-right')+'</button>')+'</section>';
-  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('pg-carteira','wallet2','Bancos, cartões e benefícios')+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
+  h+='<section class="home-tools" aria-label="Mais ferramentas">'+uiTool('documentos','journal-text','Documentos e reembolsos')+uiTool('pg-carteira','wallet2','Bancos, cartões e benefícios')+uiTool('nav','graph-up','Resumo do mês',' data-v="painel"')+uiTool('posso','wallet2','Posso comprar?')+uiTool('atlas','chat-dots','Conversar com o Atlas')+'</section>';
   if(!db.reg[today])h+='<button type="button" class="text-action" data-act="nada">Hoje eu não gastei nada</button>';
   h+='<details class="home-more"><summary>Ver próximos recebimentos e pagamentos</summary>'+vCenarioCard(today)+'</details>';
   if(bkPrecisa(db,today))h+='<section class="home-note"><b>Guarde uma cópia dos seus dados</b><p class="home-empty">Faça um backup para recuperar seus registros se trocar de aparelho.</p><button type="button" class="text-action" data-act="gear">Fazer backup</button><button type="button" class="text-action" data-act="bkdepois">Lembrar em 3 dias</button></section>';
@@ -1719,8 +1724,8 @@ function pgCardTitle(m){return esc(m.nome)+' <small class="muted">'+esc(PG_TIPOS
 function pgCarteira(){var meios=db.meios||[],f=pgFaturas(db),bancos=meios.filter(function(m){return m.tipo==='banco'}),saldo=bancos.reduce(function(s,m){return s+pgSaldo(db,m.id)},0);
   var h='<h2>Carteira <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted">Cadastre bancos, cartões e benefícios. Informe o saldo que já existe agora; cadastre apenas os próximos recebimentos para não somar o mesmo valor duas vezes.</p><div class="row"><button class="btn pri" data-act="pg-novo">+ Banco, cartão ou benefício</button></div><div class="card"><h3>Saldo bancário: '+fmt(saldo)+'</h3><p class="muted">VA, VR e limite de crédito têm saldos separados abaixo.</p><label style="display:flex;align-items:center;gap:8px"><input id="pg-somar" type="checkbox" style="width:auto" '+(db.pgSomarBancos?'checked':'')+'> Usar a soma dos bancos no saldo geral</label><p class="muted">Ative depois de cadastrar e conferir todas as contas. Ao registrar novas entradas e saídas, escolha a conta. Seu saldo geral anterior fica preservado se desativar.</p><button class="btn sm" data-act="pg-somar">Aplicar escolha</button></div><div class="row"><button class="btn" data-act="rendas">Salário por quinzena, outras rendas e recargas</button><button class="btn" data-act="pg-planejar">Planejar uso de um saldo</button></div>';
   if(!meios.length)h+='<p class="muted">Nenhum meio cadastrado. Comece pelo banco ou benefício que você utiliza.</p>';
-  meios.forEach(function(m){var saldo=pgSaldo(db,m.id),res=pgReservado(db,m.id);h+='<div class="card"><h3>'+pgCardTitle(m)+(m.arquivado?' · arquivado':'')+'</h3><div class="leg"><span>'+(m.tipo==='cartao'?'Limite disponível':'Saldo atual')+'</span><b>'+fmt(saldo)+'</b></div><div class="leg"><span>Comprometido com gastos programados e reserva mensal</span><b>'+fmt(res)+'</b></div><p class="muted">Após esse planejamento: '+fmt(saldo-res)+(m.tipo==='cartao'?'. A fatura precisa ser paga com dinheiro; limite não é renda.':'.')+'</p>'+(m.tipo==='cartao'?'<p class="muted">Limite total '+fmt(m.limite)+' · fecha dia '+m.fechamento+' · vence dia '+m.vencimento+'. Compra no dia do fechamento vai para o próximo ciclo; confira o extrato do emissor.</p>':'')+'<div class="row"><button class="btn sm" data-act="pg-editar" data-id="'+esc(m.id)+'">Editar / conferir saldo</button><button class="btn sm" data-act="pg-arquivar" data-id="'+esc(m.id)+'">'+(m.arquivado?'Reativar':'Arquivar')+'</button></div></div>'});
-  if(f.length)h+='<h3>Faturas dos cartões</h3><p class="muted">Somente compras cadastradas com um cartão aparecem aqui. Se já cadastrou manualmente uma conta fixa de fatura, confira para não duplicar a previsão.</p>'+f.map(function(x){return'<div class="card"><b>'+esc(x.nome)+' · '+dm(x.data)+'</b><p>Total '+fmt(x.total)+' · falta pagar '+fmt(x.aberto)+'</p>'+(x.aberto?'<button class="btn pri" data-act="pg-fatura" data-id="'+esc(x.id)+'" data-data="'+x.data+'">Pagar fatura</button>':'<button class="btn" data-act="pg-reabrir" data-id="'+esc(x.id)+'" data-data="'+x.data+'">Reabrir fatura</button>')+'</div>'}).join('');
+  meios.forEach(function(m){var saldo=pgSaldo(db,m.id),res=pgReservado(db,m.id);h+='<div class="card"><h3>'+pgCardTitle(m)+(m.arquivado?' · arquivado':'')+'</h3><div class="leg"><span>'+(m.tipo==='cartao'?'Limite disponível':'Saldo atual')+'</span><b>'+fmt(saldo)+'</b></div><div class="leg"><span>Comprometido com gastos programados e reserva mensal</span><b>'+fmt(res)+'</b></div><p class="muted">Após esse planejamento: '+fmt(saldo-res)+(m.tipo==='cartao'?'. A fatura precisa ser paga com dinheiro; limite não é renda.':'.')+'</p>'+(m.tipo==='cartao'?'<p class="muted">Limite total '+fmt(m.limite)+' · fecha dia '+m.fechamento+' · vence dia '+m.vencimento+'. Compra no dia do fechamento vai para o próximo ciclo; confira o extrato do emissor.</p>':'')+'<div class="row"><button class="btn sm" data-act="pg-editar" data-id="'+esc(m.id)+'">Editar / conferir saldo</button>'+(m.tipo==='cartao'?'<button class="btn sm" data-act="anexos" data-parent="fatura" data-id="'+esc(m.id+'|'+(function(){var ym=monthOf(todayStr()),date=ym+'-'+pad(Math.min(m.vencimento,daysInMonth(ym)));if(date<todayStr()){ym=addMonths(ym,1);date=ym+'-'+pad(Math.min(m.vencimento,daysInMonth(ym)))}return date})())+'">Anexar fatura atual / futura</button>':'')+'<button class="btn sm" data-act="pg-arquivar" data-id="'+esc(m.id)+'">'+(m.arquivado?'Reativar':'Arquivar')+'</button></div></div>'});
+  if(f.length)h+='<h3>Faturas dos cartões</h3><p class="muted">Somente compras cadastradas com um cartão aparecem aqui. Se já cadastrou manualmente uma conta fixa de fatura, confira para não duplicar a previsão.</p>'+f.map(function(x){return'<div class="card"><b>'+esc(x.nome)+' · '+dm(x.data)+'</b><p>Total '+fmt(x.total)+' · falta pagar '+fmt(x.aberto)+'</p><div class="row"><button class="btn sm" data-act="anexos" data-parent="fatura" data-id="'+esc(x.id+'|'+x.data)+'">Anexar / conferir fatura</button></div>'+(x.aberto?'<button class="btn pri" data-act="pg-fatura" data-id="'+esc(x.id)+'" data-data="'+x.data+'">Pagar fatura</button>':'<button class="btn" data-act="pg-reabrir" data-id="'+esc(x.id)+'" data-data="'+x.data+'">Reabrir fatura</button>')+'</div>'}).join('');
   var prog=(db.prog||[]).filter(function(p){return p.meioId});if(prog.length)h+='<h3>Usos planejados</h3>'+prog.map(function(p){return'<div class="card"><b>'+esc(p.nome)+'</b><p>'+fmt(p.v)+' · '+dm(p.data)+' · '+esc(pgNome(p.meioId))+'</p><div class="row"><button class="btn sm pri" data-act="progpago" data-id="'+esc(p.id)+'">Registrar gasto</button><button class="btn sm" data-act="progdel" data-id="'+esc(p.id)+'">Remover planejamento</button></div></div>'}).join('');
   openSheet(h);
 }
@@ -1744,7 +1749,7 @@ function sAdd(){
     '<div id="qcats"><label>Categoria</label><div class="chips">'+catChips(qf.cat)+'</div></div>'+
     '<label>Descrição (opcional)</label><input id="qd" maxlength="60" placeholder="Ex.: mercado do mês">'+
     '<label>Quando</label><div class="chips"><button type="button" class="chip on" id="dH" data-act="dia" data-d="0">Hoje</button><button type="button" class="chip" id="dO" data-act="dia" data-d="-1">Ontem</button><input type="date" id="qdt" value="'+today+'" style="width:auto"></div>'+
-    pgCampo('qmeio','','gastar')+'<div id="qparcelas" hidden><label for="qnp">Parcelas no cartão (valor acima é o total)</label><input id="qnp" type="number" min="1" max="48" value="1"></div><div class="row fix"><button class="btn pri" data-act="saveadd">Salvar</button></div>');
+    '<input type="hidden" id="an-origin" value=""><input type="hidden" id="an-mode" value="">'+pgCampo('qmeio','','gastar')+'<div id="qparcelas" hidden><label for="qnp">Parcelas no cartão (valor acima é o total)</label><input id="qnp" type="number" min="1" max="48" value="1"></div><div class="row fix"><button class="btn pri" data-act="saveadd">Salvar</button></div>');
 }
 function syncQF(){
   pgSyncRegistro();
@@ -1763,8 +1768,8 @@ function onQuick(txt){
 }
 function saveAdd(){
   var v=toCents($('#qv').value);if(!v)return toast('Digite o valor.');
-  var before=JSON.stringify(db),r=pgRegistrar(db,{t:qf.t,v:v,cat:qf.t==='d'?qf.cat:'outros',desc:$('#qd').value.trim(),data:$('#qdt').value||qf.data,meioId:$('#qmeio').value,n:$('#qparcelas').hidden?1:+$('#qnp').value});
-  if(r.erro)return toast(r.erro);markReg(db,todayStr());if(!save()){db=JSON.parse(before);return}closeSheet();render();
+  var before=JSON.stringify(db),r=pgRegistrar(db,{t:qf.t,v:v,cat:qf.t==='d'?qf.cat:'outros',desc:$('#qd').value.trim(),data:$('#qdt').value||qf.data,meioId:$('#qmeio').value,n:$('#qparcelas').hidden?1:+$('#qnp').value,anCase:$('#an-origin').value,anMode:$('#an-mode').value});
+  if(r.erro)return toast(r.erro);var docId=$('#an-origin').value,docMode=$('#an-mode').value;markReg(db,todayStr());if(!save()){db=JSON.parse(before);return}closeSheet();render();if(docId&&window.AtlasDocs)AtlasDocs.afterRecord(r.recs,docId,docMode);
   var ids=r.recs.map(function(x){return x.id});toast('Registrado no meio escolhido.','Desfazer',function(){db.recs=db.recs.filter(function(x){return ids.indexOf(x.id)<0});save();render()});
 }
 
@@ -1852,7 +1857,7 @@ function sSetup(){
 }
 function sEdit(id){
   var r=db.recs.filter(function(x){return x.id===id})[0];if(!r)return;
-  if(r.pgPagoEm){toast('Reabra a fatura na Carteira antes de editar uma compra quitada.');return}
+  if(r.pgPagoEm){openSheet('<h2>Compra quitada <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p>'+esc(r.desc)+' · '+fmt(r.v)+'</p><button class="btn" data-act="anexos" data-id="'+esc(r.id)+'">Anexos / reembolso</button><p class="muted">Para alterar valores, reabra a fatura na Carteira.</p>');return}
   qf={t:r.t,cat:r.cat,data:r.data,id:id};
   openSheet('<h2>Editar <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+
     '<label>Valor</label><input class="money" id="ev" inputmode="numeric" value="'+fmt(r.v)+'">'+
@@ -1861,7 +1866,7 @@ function sEdit(id){
     '<label>Data</label><input type="date" id="edt" value="'+esc(r.data)+'">'+
     ((r.fixa&&!r.est)||r.t==='r'?'<label>Situação</label><div class="seg"><button type="button" class="chip '+(r.st==='prev'?'on':'')+'" data-act="est" data-s="prev">'+(r.t==='r'?'Prevista':'A pagar')+'</button><button type="button" class="chip '+(r.st==='real'?'on':'')+'" data-act="est" data-s="real">'+(r.t==='r'?'Recebida':'Paga')+'</button></div>':'')+
     (r.fixa&&!r.est&&r.st==='prev'?'<div class="row"><button class="btn pri" data-act="pagarx" data-id="'+esc(id)+'">✅ Pagar esta conta</button></div>':'')+
-    '<div class="row"><button class="btn pri" data-act="saveedit">Salvar</button><button class="btn danger" data-act="delrec">Excluir</button></div>');
+    '<div class="row"><button class="btn" data-act="anexos" data-parent="'+(r.fixa?'conta':'gasto')+'" data-id="'+esc(r.id)+'">Anexos / reembolso</button></div><div class="row"><button class="btn pri" data-act="saveedit">Salvar</button><button class="btn danger" data-act="delrec">Excluir</button></div>');
   qf.st=r.st;
 }
 function saveEdit(){
@@ -1974,7 +1979,7 @@ function sPagar(id){
   var r=db.recs.filter(function(x){return x.id===id})[0];if(!r)return;qf={id:id};
   var tid=r.from||r.id,rec=r.rec==='m'&&db.recs.some(function(x){return x.id===tid});
   openSheet('<h2>Pagar: '+esc(r.desc)+' <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2><p class="muted" style="margin:0">Vencimento dia '+r.data.slice(8,10)+'/'+r.data.slice(5,7)+'. Conferiu o valor? Se veio diferente, corrija: o limite diário se ajusta.</p><label>Valor pago</label><input class="money" id="pgv" style="font-size:22px" inputmode="numeric" value="'+fmt(r.v)+'">'+pgCampo('pagarmeio',r.meioId,'gastar')+'<div class="row"><button class="btn pri" data-act="confpag">Confirmar pagamento</button></div>'+
-    '<div class="row"><button class="btn sm" data-act="edit" data-id="'+esc(id)+'">✏️ Editar (nome, dia, onde se encaixa)</button>'+(rec?'<button class="btn sm danger" data-act="fxdel" data-id="'+esc(tid)+'">Excluir esta e as próximas</button>':'<button class="btn sm danger" data-act="edit" data-id="'+esc(id)+'">Excluir</button>')+'</div>');
+    '<div class="row"><button class="btn" data-act="anexos" data-parent="conta" data-id="'+esc(id)+'">Anexar boleto / comprovante</button></div><div class="row"><button class="btn sm" data-act="edit" data-id="'+esc(id)+'">✏️ Editar (nome, dia, onde se encaixa)</button>'+(rec?'<button class="btn sm danger" data-act="fxdel" data-id="'+esc(tid)+'">Excluir esta e as próximas</button>':'<button class="btn sm danger" data-act="edit" data-id="'+esc(id)+'">Excluir</button>')+'</div>');
 }
 function sMeta(id){
   var m=id?db.metas.filter(function(x){return x.id===id})[0]:null;qf={id:id||null,tipo:m?m.tipo:null};
@@ -1985,7 +1990,7 @@ function sMeta(id){
     '<label>Até quando? (opcional)</label><input type="month" id="mp" value="'+esc(m&&m.prazo?m.prazo:'')+'">'+
     '<label>Quanto vai guardar por mês neste plano? (deixe vazio para não reservar)</label><input class="money" id="mm" style="font-size:22px" inputmode="numeric" placeholder="R$ 0,00" value="'+(m&&m.mensal?fmt(m.mensal):'')+'">'+
     pgCampo('mmeio',m?m.meioId:'','gastar')+'<label for="mpagcat">Categoria do uso planejado</label><select id="mpagcat">'+CATS.map(function(c){return'<option value="'+c[0]+'"'+(m&&m.pagCat===c[0]?' selected':'')+'>'+esc(c[1])+'</option>'}).join('')+'</select><p class="muted">VA/VR reservam o próprio benefício. No crédito, a reserva mensal é dinheiro para pagar a fatura; limite não é poupança.</p><div id="msug" class="muted" style="margin-top:6px"></div>'+
-    '<div class="row"><button class="btn pri" data-act="savemeta">Salvar plano</button>'+(m?'<button class="btn danger" data-act="delmeta">Excluir</button>':'')+'</div>');
+    '<div class="row">'+(m?'<button class="btn" data-act="anexos" data-parent="plano" data-id="'+esc(m.id)+'">Anexar orçamento</button>':'')+'</div><div class="row"><button class="btn pri" data-act="savemeta">Salvar plano</button>'+(m?'<button class="btn danger" data-act="delmeta">Excluir</button>':'')+'</div>');
   mSug();
 }
 function mSug(){
@@ -2105,6 +2110,7 @@ document.addEventListener('click',function(e){
   switch(a){
     case'ui-privacy':uiHideDaily=!uiHideDaily;render();var privacy=$('[data-act="ui-privacy"]');if(privacy)privacy.focus();break;
     case'ui-calculo':openSheet('<h2>Seu valor para hoje <button class="icon-btn" data-act="close" aria-label="Fechar">×</button></h2>'+vComoCalc(today,budget(db,today)));break;
+    case'documentos':AtlasDocs.list();break;case'anexos':AtlasDocs.open(el.getAttribute('data-parent')||'gasto',id);break;
     case'pg-carteira':case'pg-voltar':pgCarteira();break;
     case'pg-novo':pgForm();break;case'pg-editar':pgForm(id);break;case'pg-salvar':pgSalvar();break;
     case'pg-planejar':pgPlanejar();break;case'pg-programar':pgProgramar();break;
@@ -2229,4 +2235,5 @@ try{if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigato
 (nvLogado()?nvSync():Promise.resolve()).then(function(){if(!db.onb&&!db.recs.length&&!$('#sheet').innerHTML)sSetup()});
 </script>
 </body></html>
+
 

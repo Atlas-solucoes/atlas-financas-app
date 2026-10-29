@@ -1,0 +1,7 @@
+GitHub desbloqueado e atualização concluída em 29/10/2026.
+Código validado: 9194c2bf0bef9c68252c17e35ebf60dfcf89210c, PR #4.
+46 testes e execução completa de navegador aprovados.
+Evidências: docs/RESULTADO-DOCUMENTOS.json e docs/CONCLUSAO-FINANCAS.md.
+Destino: endereço habitual /nuvem/; publicação conferida pelo workflow Verificar publicação Atlas.
+Supabase: bucket privado e políticas aplicados; nenhum gasto real alterado nos testes.
+Critérios restantes para venda registrados no documento de conclusão.

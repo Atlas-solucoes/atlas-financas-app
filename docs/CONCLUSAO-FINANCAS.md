@@ -17,14 +17,16 @@ conforme pedido do usuário. Não foi criado outro site, plugin ou serviço de I
 
 ## Evidências
 
-Commit de código c185050c69d8d14eadd5cf72ab92b777684d3fd4:
-https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40864136653
+Commit de código 9194c2bf0bef9c68252c17e35ebf60dfcf89210c:
+https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40866848905
 
 46 testes: 19 investimentos, 14 carteira, 13 documentos, todos aprovados.
 Navegador com 320/360/390 px: fluxo financeiro anterior, foto sintética, OCR real
 em português, PDF sintético, recusa de arquivo falso/duplicado, pessoal/corporativo,
 filtros, ZIP validado, compartilhamento simulado, revisão de despesa/crédito de
-reembolso e segundo contexto. PWA offline e consulta BCB também passaram.
+reembolso e segundo contexto. Também passaram a entrada manual/repetida do total
+da fatura, cancelamento de inicialização do OCR e resposta atrasada após logout.
+PWA offline e consulta BCB também passaram.
 Os dados de Storage/REST dos testes de navegador são simulados: não usaram fotos,
 senhas, tokens ou transações financeiras reais dos usuários.
 

@@ -247,6 +247,16 @@ def exercise_documents(a, b, backend, artifacts):
             assert a.evaluate("db.recs.filter(r=>r.pgAbertura).length")==1
             assert a.evaluate("(card)=>pgFaturas(db).find(f=>f.id===card&&f.data==='2026-12-05').total",card)==15000
             a.wait_for_function('!N.dirty && !nvBusy')
+        # O mesmo campo também funciona manualmente, sem executar leitura de arquivo.
+        a.evaluate('pgCarteira()')
+        a.locator(f'[data-act="anexos"][data-id="{invoice_key}"]').click()
+        a.locator('#ad-amount').fill('15000')
+        a.locator('[data-doc="invoice-manual"]').click()
+        expect(a.locator('#ad-idiff')).to_contain_text('116,66')
+        a.locator('[data-doc="invoice-save"]').click()
+        assert a.evaluate("db.recs.filter(r=>r.pgAbertura).length")==1
+        assert a.evaluate("(card)=>pgFaturas(db).find(f=>f.id===card&&f.data==='2026-12-05').total",card)==15000
+        a.wait_for_function('!N.dirty && !nvBusy')
     listing()
     for width in (320,360,390):
         a.set_viewport_size({'width':width,'height':844})

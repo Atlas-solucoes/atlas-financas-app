@@ -87,3 +87,7 @@ do service worker ativo. Uma versão antiga exige fechar abas/app e reabrir, imp
 que um worker legado intercepte e guarde as novas respostas privadas.
 
 Migração registrada pelo Supabase: 20261029110109_documentos_privados_e_reembolsos.
+
+A fatura também permite digitar o total manualmente e escolher Conferir total/saldo
+anterior, sem anexar ou reconhecer arquivo. Só a confirmação inclui a diferença
+em relação às compras existentes; o fluxo de navegador cobre repetição sem duplicar.

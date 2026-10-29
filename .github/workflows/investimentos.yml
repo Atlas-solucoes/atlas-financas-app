@@ -1,7 +1,7 @@
 name: Homologação de investimentos
 on:
   push:
-    branches: [feature/investimentos-cdi-comparador, feature/carteira-rendas-beneficios, feature/documentos-reembolsos]
+    branches: [feature/investimentos-cdi-comparador, feature/carteira-rendas-beneficios, feature/documentos-reembolsos, feature/empresas-conforto]
   pull_request:
     paths: ['nuvem/**', 'tests/**', '.github/workflows/investimentos.yml']
 permissions:

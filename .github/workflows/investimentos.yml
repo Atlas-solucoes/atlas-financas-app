@@ -1,7 +1,7 @@
 name: Homologação de investimentos
 on:
   push:
-    branches: [feature/investimentos-cdi-comparador, feature/carteira-rendas-beneficios]
+    branches: [feature/investimentos-cdi-comparador, feature/carteira-rendas-beneficios, feature/documentos-reembolsos]
   pull_request:
     paths: ['nuvem/**', 'tests/**', '.github/workflows/investimentos.yml']
 permissions:
@@ -17,6 +17,7 @@ jobs:
           node-version: '24'
       - run: node tests/investimentos.test.cjs
       - run: node tests/pagamentos.test.cjs
+      - run: node tests/documentos.test.cjs
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -25,6 +26,7 @@ jobs:
       - name: Interface, sincronização simulada, PWA e CDI oficial
         env:
           LIVE_CDI: '1'
+          LIVE_OCR: '1'
           PUBLIC_SITE: 'https://atlas-solucoes.github.io/atlas-financas-app/nuvem/'
         run: python tests/browser_investimentos.py
       - uses: actions/upload-artifact@v4
@@ -33,3 +35,4 @@ jobs:
           name: homologacao-investimentos
           path: test-results/
           if-no-files-found: warn
+

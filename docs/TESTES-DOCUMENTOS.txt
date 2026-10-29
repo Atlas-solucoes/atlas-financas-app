@@ -1,0 +1,20 @@
+✔ nota de almoço propõe estabelecimento, data e total em centavos (2.883984ms)
+✔ mais de um total diferente exige escolha e não adivinha valor (2.524839ms)
+✔ quantidade de itens, CPF e número do boleto não viram dinheiro (0.368832ms)
+✔ agendamento é identificado sem produzir baixa ou pagamento (0.272241ms)
+✔ vencimento separado da emissão e datas inexistentes rejeitadas (0.240707ms)
+✔ assinatura do conteúdo aceita documentos e rejeita HTML disfarçado (0.296759ms)
+✔ pessoal e cartão da empresa não permitem solicitar reembolso (0.226598ms)
+✔ total a receber conta cada gasto uma vez e exclui pagos e pessoais (0.148179ms)
+✔ filtro combina empresa, natureza, período e situação (0.501614ms)
+✔ ZIP preserva arquivos e CRC, evita nomes com caminho (1.649484ms)
+✔ pacote impõe limite de quantidade (0.980595ms)
+✔ origem do documento torna criação de lançamento idempotente (4.75389ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24.284458

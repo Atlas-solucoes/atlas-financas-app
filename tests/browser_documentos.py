@@ -243,6 +243,7 @@ def exercise_documents(a, b, backend, artifacts):
             a.locator('[data-doc="review"]').click()
             expect(a.locator('#ad-idiff')).to_contain_text('116,66')
             a.locator('[data-doc="invoice-save"]').click()
+            expect(a.locator('#ad-icase')).to_have_count(0)
             a.wait_for_function("db.recs.some(r=>r.pgAbertura)")
             assert a.evaluate("db.recs.filter(r=>r.pgAbertura).length")==1
             assert a.evaluate("(card)=>pgFaturas(db).find(f=>f.id===card&&f.data==='2026-12-05').total",card)==15000
@@ -254,6 +255,7 @@ def exercise_documents(a, b, backend, artifacts):
         a.locator('[data-doc="invoice-manual"]').click()
         expect(a.locator('#ad-idiff')).to_contain_text('116,66')
         a.locator('[data-doc="invoice-save"]').click()
+        expect(a.locator('#ad-icase')).to_have_count(0)
         assert a.evaluate("db.recs.filter(r=>r.pgAbertura).length")==1
         assert a.evaluate("(card)=>pgFaturas(db).find(f=>f.id===card&&f.data==='2026-12-05').total",card)==15000
         a.wait_for_function('!N.dirty && !nvBusy')

@@ -13,7 +13,7 @@ checks=[]
 for path in ['nuvem/index.html','nuvem/documentos-core.js','nuvem/documentos.js','nuvem/sw.js']:
     expected=hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
     last=''
-    for attempt in range(6):
+    for attempt in range(24):
         try:
             request=Request(SITE+path+'?atlas_version='+commit,headers={'Cache-Control':'no-cache','User-Agent':'Atlas-release-check'})
             with urlopen(request,timeout=20) as response:
@@ -23,7 +23,7 @@ for path in ['nuvem/index.html','nuvem/documentos-core.js','nuvem/documentos.js'
             last='Publicado ainda difere do commit esperado.'
         except Exception as exc:
             last=str(exc)
-        if attempt<5:time.sleep(8)
+        if attempt<23:time.sleep(8)
     else:
         raise AssertionError(path+': '+last)
 report={'commit':commit,'scope':'HTTP público, sem autenticação e sem acesso ao Supabase','checks':checks}

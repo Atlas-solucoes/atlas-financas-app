@@ -222,6 +222,31 @@ def exercise_documents(a, b, backend, artifacts):
         a.wait_for_function('!N.dirty && !nvBusy')
         assert backend.cases[cid]['reimbursement_status']=='recebido'
         assert a.evaluate('(id)=>db.recs.filter(r=>r.anReembolso===id).length',cid)==1
+    # Reconciliação do saldo anterior de fatura: considera o que já existe,
+    # inclui somente a diferença e repetir a confirmação não duplica a dívida.
+    close();a.evaluate('pgCarteira()')
+    card=a.evaluate("db.meios.find(m=>m.tipo==='cartao').id")
+    invoice_key=card+'|2026-12-05'
+    a.locator(f'[data-act="anexos"][data-id="{invoice_key}"]').click()
+    a.locator('#ad-file').set_input_files(sample_pdf())
+    expect(a.locator('[data-doc="upload"]')).to_be_visible()
+    a.locator('[data-doc="upload"]').click()
+    expect(a.locator('#ad-status')).to_contain_text('Arquivo anexado')
+    if os.environ.get('LIVE_OCR')=='1':
+        for repeat in range(2):
+            if repeat:
+                a.evaluate('pgCarteira()')
+                a.locator(f'[data-act="anexos"][data-id="{invoice_key}"]').click()
+            a.locator('[data-doc="read-existing"]').click()
+            expect(a.locator('#ad-pamount')).to_have_value('R$ 150,00',timeout=120000)
+            a.locator('#ad-pdue').fill('2026-12-05')
+            a.locator('[data-doc="review"]').click()
+            expect(a.locator('#ad-idiff')).to_contain_text('116,66')
+            a.locator('[data-doc="invoice-save"]').click()
+            a.wait_for_function("db.recs.some(r=>r.pgAbertura)")
+            assert a.evaluate("db.recs.filter(r=>r.pgAbertura).length")==1
+            assert a.evaluate("(card)=>pgFaturas(db).find(f=>f.id===card&&f.data==='2026-12-05').total",card)==15000
+            a.wait_for_function('!N.dirty && !nvBusy')
     listing()
     for width in (320,360,390):
         a.set_viewport_size({'width':width,'height':844})
@@ -230,4 +255,4 @@ def exercise_documents(a, b, backend, artifacts):
     a.screenshot(path=str(artifacts/'documentos-reembolsos-mobile.png'),full_page=True)
     close();b.evaluate('closeSheet()')
     a.locator('nav [data-v="investimentos"]').click()
-    return 'PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso e segunda sessão (Storage/REST simulados)'
+    return 'PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso, saldo anterior de fatura sem duplicação e segunda sessão (Storage/REST simulados)'

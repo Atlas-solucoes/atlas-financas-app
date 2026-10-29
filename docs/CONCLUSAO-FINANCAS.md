@@ -20,7 +20,7 @@ conforme pedido do usuário. Não foi criado outro site, plugin ou serviço de I
 Commit de código ab2256f5806ddd118c7fb052d629272ccd52d75c:
 https://github.com/Atlas-solucoes/atlas-financas-app/actions/runs/40862986999
 
-45 testes: 19 investimentos, 14 carteira, 12 documentos, todos aprovados.
+46 testes: 19 investimentos, 14 carteira, 13 documentos, todos aprovados.
 Navegador com 320/360/390 px: fluxo financeiro anterior, foto sintética, OCR real
 em português, PDF sintético, recusa de arquivo falso/duplicado, pessoal/corporativo,
 filtros, ZIP validado, compartilhamento simulado, revisão de despesa/crédito de
@@ -81,3 +81,7 @@ A leitura é local; anexar à nuvem é uma ação explícita. Arquivos privados 
 no cache da PWA. No rollback, preservar bucket/tabelas e o JSON financeiro; reverter
 somente código para uma versão compatível. A proteção de clientes legados da Carteira
 continua ativa e não deve ser removida para forçar uma gravação antiga.
+
+Antes de acessar documentos privados, o cliente exige confirmação da política de cache
+do service worker ativo. Uma versão antiga exige fechar abas/app e reabrir, impedindo
+que um worker legado intercepte e guarde as novas respostas privadas.

@@ -12,3 +12,5 @@ self.addEventListener('fetch',function(e){
   e.respondWith(fetch(e.request).then(function(r){if(r.ok&&r.type!=='opaque'){var c=r.clone();e.waitUntil(caches.open(VERSAO).then(function(x){return x.put(url.href,c)}))}return r}).catch(function(){return caches.open(VERSAO).then(function(c){return c.match(url.href)}).then(function(r){return r||Response.error()})}));
 });
 
+
+self.addEventListener('message',function(e){if(e.data&&e.data.type==='ATLAS_PRIVATE_DATA_POLICY'&&e.ports&&e.ports[0])e.ports[0].postMessage({privateResponsesCached:false,version:VERSAO})});

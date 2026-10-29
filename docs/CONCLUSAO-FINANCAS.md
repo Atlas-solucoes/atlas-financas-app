@@ -91,3 +91,9 @@ Migração registrada pelo Supabase: 20261029110109_documentos_privados_e_reembo
 A fatura também permite digitar o total manualmente e escolher Conferir total/saldo
 anterior, sem anexar ou reconhecer arquivo. Só a confirmação inclui a diferença
 em relação às compras existentes; o fluxo de navegador cobre repetição sem duplicar.
+
+A leitura possui limites de tempo para baixar o leitor, iniciá-lo e reconhecer texto;
+fechar o formulário cancela a leitura e libera o uso dos documentos. Respostas JSON
+e arquivos são novamente verificados após o corpo ser recebido, evitando aplicar
+uma resposta da conta anterior se houver logout/troca de sessão durante a transferência.
+O navegador inclui teste de resposta atrasada após logout e de início de OCR cancelado.

@@ -263,6 +263,26 @@ def exercise_documents(a, b, backend, artifacts):
         assert a.evaluate('document.documentElement.scrollWidth <= innerWidth')
         assert a.locator('.pn').evaluate('(el)=>el.scrollWidth <= el.clientWidth+1')
     a.screenshot(path=str(artifacts/'documentos-reembolsos-mobile.png'),full_page=True)
-    close();b.evaluate('closeSheet()')
+    # Fechar uma leitura cujo worker não iniciou não pode bloquear os documentos.
+    if os.environ.get('LIVE_OCR')=='1':
+        new();a.locator('#ad-file').set_input_files(sample)
+        expect(a.locator('#ad-canvas')).to_be_visible()
+        a.evaluate("window.testOriginalCreateWorker=Tesseract.createWorker;Tesseract.createWorker=()=>{window.testOcrInitHeld=true;return new Promise(()=>{})}")
+        a.locator('[data-doc="read"]').click()
+        a.wait_for_function('window.testOcrInitHeld === true')
+        a.locator('#sheet [data-act="close"]').click()
+        a.evaluate('Tesseract.createWorker=window.testOriginalCreateWorker')
+        listing()
+        expect(a.locator('#ad-fscope')).to_be_visible()
+    # Cabeçalhos já recebidos não autorizam aplicar corpo antigo após logout.
+    close()
+    a.evaluate('''() => {window.testPreviousSession={...N};window.testOriginalFetch=window.fetch;window.fetch=async(...args)=>{const r=await window.testOriginalFetch(...args);if(String(args[0]).includes('/rest/v1/atlas_expense_cases')&&!window.testBodyHeld){window.testBodyHeld=true;const data=await r.json();r.json=()=>new Promise(resolve=>{window.testReleaseBody=()=>resolve(data)});}return r;}}''')
+    a.locator('.top [data-act="documentos"]').click()
+    a.wait_for_function("typeof window.testReleaseBody === 'function'")
+    a.evaluate('nvSair();closeSheet();render();window.testReleaseBody()')
+    expect(a.locator('#toast')).to_contain_text('Conta alterada',timeout=10000)
+    assert a.locator('#ad-root').count()==0
+    a.evaluate('window.fetch=window.testOriginalFetch;N=window.testPreviousSession;nvStore();render()')
+    b.evaluate('closeSheet()')
     a.locator('nav [data-v="investimentos"]').click()
-    return 'PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso, saldo anterior de fatura sem duplicação e segunda sessão (Storage/REST simulados)'
+    return 'PASS: foto privada, OCR revisado, duplicação bloqueada, pessoal/corporativo, filtros, compartilhamento simulado e ZIP, reembolso, saldo anterior de fatura sem duplicação segunda sessão, cancelamento de OCR e corpo atrasado após logout (Storage/REST simulados)'
